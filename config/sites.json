@@ -1,0 +1,7 @@
+{
+  "A": { "name": "Site A", "latitude": null, "longitude": null, "timezone": "America/Chicago" },
+  "B": { "name": "Site B", "latitude": null, "longitude": null, "timezone": "America/Chicago" },
+  "C": { "name": "Site C", "latitude": null, "longitude": null, "timezone": "America/Chicago" },
+  "D": { "name": "Site D", "latitude": null, "longitude": null, "timezone": "America/Chicago" }
+}
+

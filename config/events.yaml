@@ -1,0 +1,25 @@
+# Manually curated event windows (optional).
+# You can extend this with county-level or city-level events later.
+#
+# Fields:
+# - id: stable identifier
+# - name: display label
+# - start_date/end_date: YYYY-MM-DD inclusive
+# - weight: rough intensity (0..1)
+# - tags: list of labels
+
+events:
+  - id: sturgis_2025
+    name: Sturgis Motorcycle Rally (typical window)
+    start_date: 2025-08-01
+    end_date: 2025-08-15
+    weight: 1.0
+    tags: [crowd, travel, motorcycle]
+
+  - id: school_start_fall_2025
+    name: School start (approx)
+    start_date: 2025-08-20
+    end_date: 2025-09-10
+    weight: 0.5
+    tags: [school, respiratory]
+

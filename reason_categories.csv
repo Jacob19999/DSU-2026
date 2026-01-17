@@ -1,0 +1,868 @@
+REASON_VISIT_NAME,Category
+MEDICATION REACTION,Allergic/Immunological
+ALLERGIC RHINITIS,Allergic/Immunological
+ALLERGIC REACTION,Allergic/Immunological
+STRESS REACTION,Allergic/Immunological
+HYPERTENSION,Cardiovascular
+HEART BLOCK,Cardiovascular
+VERTIGO,Cardiovascular
+ORAL SWELLING,Cardiovascular
+ATRIAL FIBRILLATION,Cardiovascular
+FOOT SWELLING,Cardiovascular
+SWELLING,Cardiovascular
+ABNORMAL HEART SCREEN,Cardiovascular
+CARDIAC DYSRHYTHMIAS,Cardiovascular
+DIZZINESS,Cardiovascular
+ARM SWELLING,Cardiovascular
+IMPLANTABLE CARDIAC DEFIBRILLATOR ADJUSTMENT,Cardiovascular
+ATRIAL FLUTTER,Cardiovascular
+CARDIAC ARREST,Cardiovascular
+HYPOTENSION,Cardiovascular
+LEG SWELLING,Cardiovascular
+CONGESTIVE HEART FAILURE,Cardiovascular
+HEART MURMUR,Cardiovascular
+FACIAL SWELLING,Cardiovascular
+PREMATURE VENTRICULAR CONTRACTIONS,Cardiovascular
+VENTRICULAR TACHYCARDIA,Cardiovascular
+TONGUE SWELLING,Cardiovascular
+HEART FAILURE CLINIC,Cardiovascular
+NECK SWELLING,Cardiovascular
+CARDIAC DEVICE EVALUATION,Cardiovascular
+HEART PROBLEM,Cardiovascular
+HEAD SWELLING,Cardiovascular
+GROIN SWELLING,Cardiovascular
+BLOOD PRESSURE,Cardiovascular
+IRREGULAR HEART BEAT,Cardiovascular
+CARDIAC PROCEDURE PREP,Cardiovascular
+CHEST PAIN,Cardiovascular
+JOINT SWELLING,Cardiovascular
+EDEMA,Cardiovascular
+NEAR SYNCOPE,Cardiovascular
+PULMONARY HYPERTENSION,Cardiovascular
+SYNCOPE,Cardiovascular
+SKIN ULCER,Dermatological
+FOREIGN BODY IN SKIN,Dermatological
+DERM PROBLEM,Dermatological
+RASH,Dermatological
+DERMATITIS,Dermatological
+SKIN LESION,Dermatological
+SKIN CHECK,Dermatological
+ECZEMA,Dermatological
+SKIN TAG,Dermatological
+HIVES,Dermatological
+DIAPER RASH,Dermatological
+SKIN DISCOLORATION,Dermatological
+INSULIN REACTION,Endocrine/Metabolic
+DIABETES,Endocrine/Metabolic
+DIABETIC FOOT CARE,Endocrine/Metabolic
+DIABETIC SUPPLIES,Endocrine/Metabolic
+HYPERGLYCEMIA,Endocrine/Metabolic
+GLUCOSE INTOLERANCE,Endocrine/Metabolic
+BLOOD SUGAR PROBLEMS,Endocrine/Metabolic
+THYROID MASS,Endocrine/Metabolic
+HYPOGLYCEMIA,Endocrine/Metabolic
+HIGH BLOOD SUGAR,Endocrine/Metabolic
+THYROID PROBLEM,Endocrine/Metabolic
+RECTAL BLEEDING,Gastrointestinal
+IRRITABLE BOWEL SYNDROME,Gastrointestinal
+MELENA,Gastrointestinal
+PANCREATITIS,Gastrointestinal
+GI PROBLEMS,Gastrointestinal
+HEMATEMESIS,Gastrointestinal
+ABDOMINAL AORTIC ANEURYSM,Gastrointestinal
+APPENDICITIS,Gastrointestinal
+UPPER GI PROCEDURE,Gastrointestinal
+FOREIGN BODY IN RECTUM,Gastrointestinal
+PERI RECTAL ABSCESS,Gastrointestinal
+BOWEL DYSFUNCTION,Gastrointestinal
+RECTAL PROBLEM,Gastrointestinal
+GI BLEEDING,Gastrointestinal
+CONSTIPATION,Gastrointestinal
+RECTAL CANCER,Gastrointestinal
+ABDOMINAL DISTENTION,Gastrointestinal
+NAUSEA,Gastrointestinal
+RECTAL PROLAPSE,Gastrointestinal
+VOMITING,Gastrointestinal
+ABDOMINAL CRAMPING,Gastrointestinal
+CHOLECYSTITIS,Gastrointestinal
+DIARRHEA,Gastrointestinal
+ABDOMINAL PAIN,Gastrointestinal
+RECTAL PAIN,Gastrointestinal
+PELVIC INFLAMMATORY DISEASE,Genitourinary/Reproductive
+POSTMENOPAUSAL BLEEDING,Genitourinary/Reproductive
+STRESS URINARY INCONTINENCE,Genitourinary/Reproductive
+UTERINE CANCER,Genitourinary/Reproductive
+GYN EXAM,Genitourinary/Reproductive
+TESTICULAR PAIN,Genitourinary/Reproductive
+VAGINAL PROBLEM,Genitourinary/Reproductive
+RECURRENT URINARY TRACT INFECTION,Genitourinary/Reproductive
+PELVIC PAIN,Genitourinary/Reproductive
+CHRONIC RENAL FAILURE,Genitourinary/Reproductive
+UTI,Genitourinary/Reproductive
+MENSTRUAL PROBLEM,Genitourinary/Reproductive
+PREGNANCY TEST,Genitourinary/Reproductive
+VAGINAL ITCHING,Genitourinary/Reproductive
+VOMITING DURING PREGNANCY,Genitourinary/Reproductive
+PROSTATE CANCER,Genitourinary/Reproductive
+KIDNEY TRANSPLANT FOLLOW-UP,Genitourinary/Reproductive
+URINARY BURNING,Genitourinary/Reproductive
+URINARY RETENTION,Genitourinary/Reproductive
+URINARY PAIN,Genitourinary/Reproductive
+CYSTITIS,Genitourinary/Reproductive
+RECTO VAGINAL FISTULA,Genitourinary/Reproductive
+RENAL MASS,Genitourinary/Reproductive
+VAGINAL DISCHARGE,Genitourinary/Reproductive
+FLANK PAIN,Genitourinary/Reproductive
+KIDNEY PROBLEM,Genitourinary/Reproductive
+CHRONIC KIDNEY DISEASE,Genitourinary/Reproductive
+KIDNEY TRANSPLANT,Genitourinary/Reproductive
+PROSTATE PROBLEM,Genitourinary/Reproductive
+END STAGE RENAL DISEASE,Genitourinary/Reproductive
+BURNING EYES,Genitourinary/Reproductive
+NEPHROLITHIASIS,Genitourinary/Reproductive
+URINARY FREQUENCY,Genitourinary/Reproductive
+PELVIC ORGAN PROLAPSE,Genitourinary/Reproductive
+RENAL INSUFFICIENCY,Genitourinary/Reproductive
+KIDNEY TRANSPLANT EVALUATION,Genitourinary/Reproductive
+DYSFUNCTIONAL UTERINE BLEEDING,Genitourinary/Reproductive
+VAGINAL BLEEDING,Genitourinary/Reproductive
+ACUTE RENAL FAILURE,Genitourinary/Reproductive
+RENAL TRANSPLANT,Genitourinary/Reproductive
+ECTOPIC PREGNANCY,Genitourinary/Reproductive
+UTERINE PROLAPSE,Genitourinary/Reproductive
+DYSURIA,Genitourinary/Reproductive
+URGENCY,Genitourinary/Reproductive
+PENILE DISCHARGE,Genitourinary/Reproductive
+VAGINAL PAIN,Genitourinary/Reproductive
+BLOOD INFECTION,Infectious Disease/Fever
+CYTOMEGALOVIRUS INFECTION,Infectious Disease/Fever
+SICK SINUS SYNDROME,Infectious Disease/Fever
+SINUS PROBLEM,Infectious Disease/Fever
+SINUSITIS,Infectious Disease/Fever
+VIRAL SYNDROME,Infectious Disease/Fever
+PYELONEPHRITIS,Infectious Disease/Fever
+ABSCESS,Infectious Disease/Fever
+SKIN INFECTION,Infectious Disease/Fever
+WEST NILE VIRUS INFECTION,Infectious Disease/Fever
+LINE INFECTION,Infectious Disease/Fever
+INFECTION,Infectious Disease/Fever
+CELLULITIS,Infectious Disease/Fever
+EAR INFECTION,Infectious Disease/Fever
+SUBACUTE BACTERIAL PERITONITIS,Infectious Disease/Fever
+FEVER,Infectious Disease/Fever
+TRAUMATIC BRAIN INJURY,Injury/Trauma
+FACIAL INJURY,Injury/Trauma
+INCISIONAL WOUND,Injury/Trauma
+MOTOR VEHICLE CRASH,Injury/Trauma
+JAW DISLOCATION,Injury/Trauma
+SNAKE BITE,Injury/Trauma
+ANIMAL BITE,Injury/Trauma
+WOUND ASSESSMENT,Injury/Trauma
+FOOT INJURY,Injury/Trauma
+FACIAL BURN,Injury/Trauma
+HIP INJURY,Injury/Trauma
+ANKLE INJURY,Injury/Trauma
+FRACTURE,Injury/Trauma
+DOG BITE,Injury/Trauma
+EXTREMITY LACERATION,Injury/Trauma
+ASSAULT VICTIM,Injury/Trauma
+MOUTH INJURY,Injury/Trauma
+BURN,Injury/Trauma
+MOTOR VEHICLE VS BICYCLE,Injury/Trauma
+FROSTBITE,Injury/Trauma
+WOUND VAC PLACEMENT,Injury/Trauma
+LACERATION,Injury/Trauma
+FALL,Injury/Trauma
+HEAT EXPOSURE,Injury/Trauma
+COLD EXPOSURE,Injury/Trauma
+SPINAL INJURY,Injury/Trauma
+DENTAL INJURY,Injury/Trauma
+ABRASION,Injury/Trauma
+AMPUTATION,Injury/Trauma
+GROIN BURN,Injury/Trauma
+NECK INJURY,Injury/Trauma
+ABDOMINAL INJURY,Injury/Trauma
+WOUND CHECK,Injury/Trauma
+CLOSED HEAD INJURY,Injury/Trauma
+TICK BITE,Injury/Trauma
+TRAUMA,Injury/Trauma
+EAR LACERATION,Injury/Trauma
+HEAD LACERATION,Injury/Trauma
+LIP LACERATION,Injury/Trauma
+WOUND INFECTION,Injury/Trauma
+ARM INJURY,Injury/Trauma
+GROIN INJURY,Injury/Trauma
+INSECT BITE,Injury/Trauma
+CRUSH INJURY,Injury/Trauma
+KNEE INJURY,Injury/Trauma
+MOTOR VEHICLE VS PEDESTRIAN,Injury/Trauma
+WOUND DEHISCENCE,Injury/Trauma
+ELBOW INJURY,Injury/Trauma
+BITE,Injury/Trauma
+STAB WOUND,Injury/Trauma
+BACK INJURY,Injury/Trauma
+CHEST INJURY,Injury/Trauma
+EAR INJURY,Injury/Trauma
+TOE INJURY,Injury/Trauma
+SUPERFICIAL INJURY,Injury/Trauma
+EYE BURN,Injury/Trauma
+GUN SHOT WOUND,Injury/Trauma
+ORBITAL FRACTURE,Injury/Trauma
+WRIST INJURY,Injury/Trauma
+HUMAN BITE,Injury/Trauma
+EYE INJURY,Injury/Trauma
+INJURY,Injury/Trauma
+FOOT BURN,Injury/Trauma
+FINGER INJURY,Injury/Trauma
+BODY LACERATION,Injury/Trauma
+HAND BURN,Injury/Trauma
+FACIAL LACERATION,Injury/Trauma
+HAND INJURY,Injury/Trauma
+CLAVICLE INJURY,Injury/Trauma
+LEG INJURY,Injury/Trauma
+SHOULDER INJURY,Injury/Trauma
+PUNCTURE WOUND,Injury/Trauma
+CONCUSSION,Injury/Trauma
+RIB INJURY,Injury/Trauma
+WORK RELATED INJURY,Injury/Trauma
+CORNEAL ABRASION,Injury/Trauma
+DEPRESSION,Mental Health/Behavioral
+MENTAL HEALTH VISIT,Mental Health/Behavioral
+DISRUPTIVE BEHAVIOR,Mental Health/Behavioral
+POISONING,Mental Health/Behavioral
+SUICIDE ATTEMPT,Mental Health/Behavioral
+FEBRILE SEIZURE,Mental Health/Behavioral
+ALCOHOL INTOXICATION,Mental Health/Behavioral
+EVALUATION OF SEXUAL ASSAULT,Mental Health/Behavioral
+ALTERED MENTAL STATUS,Mental Health/Behavioral
+AGGRESSIVE BEHAVIOR,Mental Health/Behavioral
+DRUG OVERDOSE,Mental Health/Behavioral
+SUICIDAL,Mental Health/Behavioral
+ANXIETY,Mental Health/Behavioral
+ALCOHOL PROBLEM,Mental Health/Behavioral
+SHAKING,Mental Health/Behavioral
+MANIC BEHAVIOR,Mental Health/Behavioral
+PSYCHIATRIC PROBLEM,Mental Health/Behavioral
+EXCESSIVE ALCOHOL USE,Mental Health/Behavioral
+CERVICAL CANCER,Musculoskeletal
+HEAD AND NECK CANCER,Musculoskeletal
+NECK MASS,Musculoskeletal
+PARALYSIS,Neurological
+HEADACHE,Neurological
+WEAKNESS,Neurological
+TRANSIENT ISCHEMIC ATTACK,Neurological
+MIGRAINE,Neurological
+NUMBNESS,Neurological
+MEMORY LOSS,Neurological
+MEMORY PROBLEMS,Neurological
+EXTREMITY WEAKNESS,Neurological
+DEMENTIA,Neurological
+ULTRASOUND,Other/Unspecified
+REFERRAL,Other/Unspecified
+PIERCING,Other/Unspecified
+THROMBOCYTOPENIA,Other/Unspecified
+PRUITIS,Other/Unspecified
+STOOL COLOR CHANGE,Other/Unspecified
+DECREASE SENSE OF SMELL/SMELLING LOSS,Other/Unspecified
+ENLARGED LYMPH NODES,Other/Unspecified
+IUD,Other/Unspecified
+COVID 19 EXPOSURE,Other/Unspecified
+ABNORMAL CXR,Other/Unspecified
+POSTPARTUM CARE,Other/Unspecified
+HYPOCALCEMIA,Other/Unspecified
+ATHLETE'S FOOT,Other/Unspecified
+COLON CANCER,Other/Unspecified
+STYE,Other/Unspecified
+NURSING HOME,Other/Unspecified
+LUPUS,Other/Unspecified
+FUSSY CHILD,Other/Unspecified
+HYPHEMA,Other/Unspecified
+PERICARDITIS,Other/Unspecified
+TEEN EVALUATION,Other/Unspecified
+LARYNGITIS,Other/Unspecified
+ABNORMAL CT,Other/Unspecified
+ADDISONS DISEASE,Other/Unspecified
+MEDICATION MANAGEMENT,Other/Unspecified
+AMENORRHEA,Other/Unspecified
+MENIERE'S DISEASE,Other/Unspecified
+DELUSIONAL,Other/Unspecified
+SOCIAL WORKER VISIT,Other/Unspecified
+COVID 19 INFORMATION,Other/Unspecified
+HOMELESS,Other/Unspecified
+CASE MANAGEMENT/RESOURCE VISIT,Other/Unspecified
+EVALUATION FOR CHILD ABUSE,Other/Unspecified
+BLADDER PROLAPSE,Other/Unspecified
+EVAL PT MAINTENANCE,Other/Unspecified
+GAS,Other/Unspecified
+SCAR,Other/Unspecified
+HEAD MASS,Other/Unspecified
+ITCHY EYE,Other/Unspecified
+PHYSICAL-OTHER,Other/Unspecified
+OSTEOMYELITIS,Other/Unspecified
+PROCEDURE PREP,Other/Unspecified
+SPASTICITY,Other/Unspecified
+DECREASED FETAL MOVEMENT,Other/Unspecified
+EVENT MONITOR TRANSMISSION,Other/Unspecified
+PRENATAL CARE,Other/Unspecified
+CONTRACTIONS,Other/Unspecified
+MRSA,Other/Unspecified
+ANAL FISTUAL,Other/Unspecified
+HIV,Other/Unspecified
+POST CHEMO,Other/Unspecified
+HERNIA REPAIR,Other/Unspecified
+NUTRITION CHILD/INFANT,Other/Unspecified
+IMPETIGO,Other/Unspecified
+POLYURIA,Other/Unspecified
+HOSPITALIZATION OR ADMISSION,Other/Unspecified
+TUBERCULOSIS,Other/Unspecified
+CROHNS,Other/Unspecified
+IMPLANT RUPTURE,Other/Unspecified
+APNEA OF PREMATURITY,Other/Unspecified
+CERUMEN IMPACTION,Other/Unspecified
+RUPTURE OF MEMBRANES,Other/Unspecified
+MOTORCYCLE VERSUS PEDESTRIAN,Other/Unspecified
+ENDOMETRIOSIS,Other/Unspecified
+PAPERWORK REQUEST,Other/Unspecified
+EQUIPMENT TROUBLE SHOOTING,Other/Unspecified
+PHYSICAL,Other/Unspecified
+ULCER,Other/Unspecified
+CHOLELITHIASIS,Other/Unspecified
+FECAL IMPACTION,Other/Unspecified
+HYDRONEPHROSIS,Other/Unspecified
+HOT FLASHES,Other/Unspecified
+ACCESSORY NIPPLE,Other/Unspecified
+PROCEDURE,Other/Unspecified
+GASTRIC BYPASS,Other/Unspecified
+VASCULITIS,Other/Unspecified
+PALLIATIVE CARE REFERRAL,Other/Unspecified
+ANEURYSM,Other/Unspecified
+DEAD ON ARRIVAL,Other/Unspecified
+ESTABLISH CARE,Other/Unspecified
+PREMATURITY,Other/Unspecified
+POST OP QUESTION,Other/Unspecified
+MUSCULOSKELETAL PROBLEM,Other/Unspecified
+ANGER,Other/Unspecified
+CONTRACEPTION,Other/Unspecified
+TEETHING,Other/Unspecified
+PRE OP COORDINATION,Other/Unspecified
+JAIL CLEARANCE,Other/Unspecified
+COVID-19 OUTPATIENT TREATMENT INELIGIBLE,Other/Unspecified
+CIRCULATORY PROBLEMS,Other/Unspecified
+MEDICAL QUESTION,Other/Unspecified
+TICS,Other/Unspecified
+C-DIFF POSITIVE,Other/Unspecified
+PACEMAKER/ICD,Other/Unspecified
+MEDICATION COUNSELING,Other/Unspecified
+OBSTRUCTIVE SLEEP APNEA,Other/Unspecified
+CARE COORDINATION,Other/Unspecified
+SEXUAL ABUSE ISSUES,Other/Unspecified
+BLINDNESS,Other/Unspecified
+BREAST ABNORMALITY,Other/Unspecified
+NOCTURIA,Other/Unspecified
+ABNORMAL PET SCAN,Other/Unspecified
+REHAB REFERRAL,Other/Unspecified
+GENETIC DISORDER,Other/Unspecified
+AUTISM,Other/Unspecified
+NEW EQUIPMENT SETUP,Other/Unspecified
+WEIGHT CHECK,Other/Unspecified
+CLAUDICATION,Other/Unspecified
+ABSTRACT,Other/Unspecified
+SNORING,Other/Unspecified
+LATENT TUBERCULOSIS,Other/Unspecified
+WARTS,Other/Unspecified
+COAGULATION DISORDER,Other/Unspecified
+FIBROIDS,Other/Unspecified
+ADVANCE CARE PLANNING,Other/Unspecified
+BEHAVIORAL HEALTH TESTING,Other/Unspecified
+FOLLICULITIS,Other/Unspecified
+FOOT CARE,Other/Unspecified
+IRREGULAR MENSES,Other/Unspecified
+HEPATITIS,Other/Unspecified
+BEHAVIORAL HEALTH APPOINTMENT REQUEST,Other/Unspecified
+OMMAYA RESERVOIR,Other/Unspecified
+SCOLIOSIS,Other/Unspecified
+MUSCULAR DYSTROPHY,Other/Unspecified
+PSORIASIS,Other/Unspecified
+NEPHRITIS,Other/Unspecified
+OPTIC NEURITIS,Other/Unspecified
+GINGIVITIS,Other/Unspecified
+CHILD ABUSE,Other/Unspecified
+PRE-EVAL PT MAINTENANCE,Other/Unspecified
+HYPERTHYROIDISM,Other/Unspecified
+BURSITIS,Other/Unspecified
+MEDICATION CHANGE REQUEST,Other/Unspecified
+CONTINUUM OF CARE,Other/Unspecified
+ADJUSTMENT ISSUES,Other/Unspecified
+TAKAYASU'S ARTERITIS,Other/Unspecified
+EMERGENCY CONTRACEPTION,Other/Unspecified
+BOTOX,Other/Unspecified
+NEUROFIBROMATOSIS,Other/Unspecified
+LABIAL ADHESIONS,Other/Unspecified
+PERSONAL PROBLEM,Other/Unspecified
+TETROLOGY OF FALLOT,Other/Unspecified
+BLACK EYE,Other/Unspecified
+PCOS,Other/Unspecified
+SUPRAGLOTTIC CANCER,Other/Unspecified
+MULTIPLE MYELOMA,Other/Unspecified
+CALLOUSES,Other/Unspecified
+LARYNGOMALACIA,Other/Unspecified
+POLYMYALGIA RHEUMATICA,Other/Unspecified
+ENURESIS,Other/Unspecified
+BUNION,Other/Unspecified
+MOLE CHECK,Other/Unspecified
+DOMESTIC MEDICAL EXAM,Other/Unspecified
+GASTROPARESIS,Other/Unspecified
+ADENOPATHY,Other/Unspecified
+ANTICOAGULATION,Other/Unspecified
+BARRETT'S ESOPHAGUS,Other/Unspecified
+APLASTIC ANEMIA,Other/Unspecified
+PACEMAKER ADJUSTMENT,Other/Unspecified
+CEREBRAL PALSY,Other/Unspecified
+HOSPITAL F/U,Other/Unspecified
+VITAMIN DEFICIENCY,Other/Unspecified
+LYMPHOMA,Other/Unspecified
+SQUAMOUS CELL CARCINOMA,Other/Unspecified
+HOSPICE,Other/Unspecified
+GENITAL WARTS,Other/Unspecified
+ELDER ABUSE,Other/Unspecified
+DEVELOPMENT PROBLEMS,Other/Unspecified
+RADIATION THERAPY,Other/Unspecified
+CLOTTING DISORDER,Other/Unspecified
+BEHAVIORAL HEALTH TRIAGE THERAPIST VISIT,Other/Unspecified
+MEDICATION TITRATION,Other/Unspecified
+SUPPLY MANAGEMENT,Other/Unspecified
+SOCIAL WITHDRAWL,Other/Unspecified
+ORTHOSIS RECHECK,Other/Unspecified
+ERECTILE DYSFUNCTION,Other/Unspecified
+PRE-OP EXAM,Other/Unspecified
+SNEEZING,Other/Unspecified
+SEROMA,Other/Unspecified
+SCHIZOAFFECTIVE DISORDER,Other/Unspecified
+HEPATITIS B,Other/Unspecified
+CYSTIC FIBROSIS,Other/Unspecified
+REACTIVE AIRWAY DISEASE,Other/Unspecified
+HEALTH MAINTENANCE,Other/Unspecified
+COGNITIVE DYSFUNCTION,Other/Unspecified
+MENORRHAGIA,Other/Unspecified
+EMPYEMA,Other/Unspecified
+DYSMENORRHEA,Other/Unspecified
+NARCOLEPSY,Other/Unspecified
+CIRRHOSIS,Other/Unspecified
+BLADDER CANCER,Other/Unspecified
+GRIEF,Other/Unspecified
+HYPERNATREMIA,Other/Unspecified
+SICKLE CELL ANEMIA,Other/Unspecified
+ALS (AMYOTROPHIC LATERAL SCLEROSIS),Other/Unspecified
+PANCREATIC CANCER,Other/Unspecified
+COLITIS,Other/Unspecified
+CHEMOTHERAPY,Other/Unspecified
+RESULTS,Other/Unspecified
+PARKINSONS,Other/Unspecified
+ESOPHAGITIS,Other/Unspecified
+THOUGHTS OF HURTING ONESELF,Other/Unspecified
+MYASTHENIA GRAVIS,Other/Unspecified
+PERSONAL HEALTH ASSESSMENT,Other/Unspecified
+GASTRITIS,Other/Unspecified
+COLORECTAL CANCER,Other/Unspecified
+PETECHIAE,Other/Unspecified
+STRESS TEST,Other/Unspecified
+NEPHROTIC SYNDROME,Other/Unspecified
+MONO,Other/Unspecified
+SPITTING UP,Other/Unspecified
+LYME DISEASE,Other/Unspecified
+HEPATIC DISEASE,Other/Unspecified
+HYPERTONIA,Other/Unspecified
+RINGING IN THE EARS,Other/Unspecified
+VASECTOMY,Other/Unspecified
+CARPAL TUNNEL,Other/Unspecified
+PANCREAS PROBLEM,Other/Unspecified
+PROLAPSE,Other/Unspecified
+MEDICATION DOSE CHANGE,Other/Unspecified
+EOSINOPHILIC ESOPHAGITIS,Other/Unspecified
+ADDICTION PROBLEM,Other/Unspecified
+SYSTEMIC LUPUS ERYTHEMATOSUS,Other/Unspecified
+DEATH,Other/Unspecified
+ANEMIA MANAGEMENT,Other/Unspecified
+PERIODIC LIMB MOVEMENT,Other/Unspecified
+NICOTINE DEPENDENCE,Other/Unspecified
+POST TRAUMATIC STRESS DISORDER (PTSD),Other/Unspecified
+PEPPER SPRAY,Other/Unspecified
+TORTICOLLIS,Other/Unspecified
+HEPATITIS C,Other/Unspecified
+COVID 19 OUTPATIENT THERAPY REFERRAL,Other/Unspecified
+VISITING NURSE,Other/Unspecified
+MOOD DISORDER,Other/Unspecified
+LYMPHEDEMA,Other/Unspecified
+LETTER,Other/Unspecified
+OSTEOARTHRITIS,Other/Unspecified
+TRANSFUSION,Other/Unspecified
+LIVER CANCER,Other/Unspecified
+PHYSICAL ABUSE ISSUES,Other/Unspecified
+COLONOSCOPY RECALL,Other/Unspecified
+FAT NECROSIS,Other/Unspecified
+ADRENAL CANCER,Other/Unspecified
+CELIAC DISEASE,Other/Unspecified
+KAWASAKI DISEASE,Other/Unspecified
+EMPLOYMENT PHYSICAL,Other/Unspecified
+SEXUALLY TRANSMITTED DISEASE,Other/Unspecified
+CAROTID ARTERY STENOSIS,Other/Unspecified
+IRON DEFICIENCY,Other/Unspecified
+DECREASED VISUAL ACUITY,Other/Unspecified
+FAMILY PROBLEM,Other/Unspecified
+THOUGHTS OF HURTING OTHERS,Other/Unspecified
+ABNORMAL EEG,Other/Unspecified
+ALLIED HEALTH VISIT,Other/Unspecified
+RUNAWAY,Other/Unspecified
+BIOPSY,Other/Unspecified
+BREAST CANCER,Other/Unspecified
+MACULAR DEGENERATION,Other/Unspecified
+PRESSURE BEHIND THE EYES,Other/Unspecified
+LABORING,Other/Unspecified
+LOW DOSE CT,Other/Unspecified
+LEUKEMIA,Other/Unspecified
+EAR PROBLEM,Other/Unspecified
+TESTICLE PROBLEM,Other/Unspecified
+FOOT ULCER,Other/Unspecified
+TOXIC INHALATION,Other/Unspecified
+PENIS/SCROTUM PROBLEM,Other/Unspecified
+CHF,Other/Unspecified
+CEREBROVASCULAR ACCIDENT,Other/Unspecified
+PLEURISY,Other/Unspecified
+PLEURAL EFFUSION,Other/Unspecified
+RECREATIONAL VEHICLE ACCIDENT,Other/Unspecified
+INCONTINENCE,Other/Unspecified
+JAUNDICE,Other/Unspecified
+TREMORS,Other/Unspecified
+AIRWAY OBSTRUCTION,Other/Unspecified
+MENOMETRORRHAGIA,Other/Unspecified
+SPASMS,Other/Unspecified
+NOSE BLEED,Other/Unspecified
+HEMORRHOIDS,Other/Unspecified
+BOIL,Other/Unspecified
+NEUROLOGIC PROBLEM,Other/Unspecified
+ANEMIA,Other/Unspecified
+BLURRED VISION,Other/Unspecified
+DRUG SCREEN,Other/Unspecified
+WEIGHT PROBLEM,Other/Unspecified
+EVALUATION,Other/Unspecified
+BREAST DISCHARGE,Other/Unspecified
+SORE,Other/Unspecified
+SLEEP PROBLEM,Other/Unspecified
+THREATENED MISCARRIAGE,Other/Unspecified
+DRUG PROBLEM,Other/Unspecified
+NEUROLOGICAL CHANGES,Other/Unspecified
+POSSIBLE HERNIA,Other/Unspecified
+CROUP,Other/Unspecified
+GAIT PROBLEMS,Other/Unspecified
+WORD FINDING PROBLEMS,Other/Unspecified
+PHARYNGITIS,Other/Unspecified
+SICKLE CELL CRISIS,Other/Unspecified
+STRIDOR,Other/Unspecified
+DYSPHAGIA,Other/Unspecified
+DEEP VEIN THROMBOSIS,Other/Unspecified
+BODY FLUID EXPOSURE,Other/Unspecified
+DRESSING CHANGE,Other/Unspecified
+EYE DRAINAGE,Other/Unspecified
+INTRAVENOUS ACCESS,Other/Unspecified
+ALOPECIA,Other/Unspecified
+CHOKING,Other/Unspecified
+BLISTER,Other/Unspecified
+INFUSION,Other/Unspecified
+VARICOSE VEINS,Other/Unspecified
+DROOLING,Other/Unspecified
+BEHAVIORAL PROBLEM,Other/Unspecified
+BREAST PROBLEM,Other/Unspecified
+POST OP TONSILLECTOMY,Other/Unspecified
+STD,Other/Unspecified
+HALLUCINATIONS,Other/Unspecified
+COLD EXTREMITY,Other/Unspecified
+CYST,Other/Unspecified
+SMOKE INHALATION,Other/Unspecified
+FAILURE TO THRIVE,Other/Unspecified
+URI,Other/Unspecified
+ANAL FISSURE,Other/Unspecified
+ELEVATED LIVER ENZYMES,Other/Unspecified
+LOSS OF CONSCIOUSNESS,Other/Unspecified
+HYPEREMESIS,Other/Unspecified
+LOSS OF APPETITE,Other/Unspecified
+AICD PROBLEM,Other/Unspecified
+DIFFICULTY WALKING,Other/Unspecified
+SWALLOWING PROBLEM,Other/Unspecified
+HERNIA,Other/Unspecified
+TACHYCARDIA,Other/Unspecified
+URINE OUTPUT,Other/Unspecified
+SA,Other/Unspecified
+CHILLS,Other/Unspecified
+MOUTH LESION,Other/Unspecified
+MISCARRIAGE,Other/Unspecified
+FOREIGN BODY IN EAR,Other/Unspecified
+HYPERKALEMIA,Other/Unspecified
+PACEMAKER PROBLEMS,Other/Unspecified
+ANGIOEDEMA,Other/Unspecified
+FOREIGN BODY SWALLOWED,Other/Unspecified
+EYE PROBLEM,Other/Unspecified
+EMESIS,Other/Unspecified
+INGESTION,Other/Unspecified
+NEEDLESTICK,Other/Unspecified
+EAR ACHE,Other/Unspecified
+HEARING PROBLEM,Other/Unspecified
+LIVER PROBLEM,Other/Unspecified
+APHASIA,Other/Unspecified
+HEMOPTYSIS,Other/Unspecified
+HEMATURIA,Other/Unspecified
+GENERALIZED BODY ACHES,Other/Unspecified
+SEIZURES,Other/Unspecified
+SORE THROAT,Other/Unspecified
+OTHER,Other/Unspecified
+MEDICATION REQUEST,Other/Unspecified
+HYPOTHERMIA,Other/Unspecified
+AGITATION,Other/Unspecified
+LOSS OF VISION,Other/Unspecified
+CONFUSION,Other/Unspecified
+PALPITATIONS,Other/Unspecified
+EPISTAXIS,Other/Unspecified
+UNRESPONSIVE,Other/Unspecified
+FOREIGN BODY IN NOSE,Other/Unspecified
+MASS,Other/Unspecified
+WITHDRAWAL,Other/Unspecified
+FUSSY,Other/Unspecified
+MOUTH/LIP PROBLEM,Other/Unspecified
+APNEA,Other/Unspecified
+BLOOD IN URINE,Other/Unspecified
+PORTACATH FLUSH,Other/Unspecified
+DRAINAGE FROM INCISION,Other/Unspecified
+ASPIRATION,Other/Unspecified
+OSTOMY ASSESSMENT,Other/Unspecified
+SLURRED SPEECH,Other/Unspecified
+PANIC ATTACK,Other/Unspecified
+HYPOXEMIA,Other/Unspecified
+DENTAL PROBLEM,Other/Unspecified
+FOREIGN BODY IN EYE,Other/Unspecified
+BREAST MASS,Other/Unspecified
+MORNING SICKNESS,Other/Unspecified
+EAR DRAINAGE,Other/Unspecified
+VISUAL FIELDS CHANGE,Other/Unspecified
+FACIAL DROOP,Other/Unspecified
+BRADYCARDIA,Other/Unspecified
+THROAT PROBLEM,Other/Unspecified
+ELECTRIC SHOCK,Other/Unspecified
+FATIGUE,Other/Unspecified
+BLOOD IN STOOL,Other/Unspecified
+HEARING LOSS,Other/Unspecified
+FOOD BOLUS,Other/Unspecified
+ABNORMAL LABS,Other/Unspecified
+INSOMNIA,Other/Unspecified
+WEIGHT LOSS,Other/Unspecified
+POOR WEIGHT GAIN,Other/Unspecified
+GANGRENE,Other/Unspecified
+HYPOKALEMIA,Other/Unspecified
+BLEEDING/BRUISING,Other/Unspecified
+METRORRHAGIA,Other/Unspecified
+GOUT,Other/Unspecified
+EXPOSURE TO STD,Other/Unspecified
+DEHYDRATION,Other/Unspecified
+HYPONATREMIA,Other/Unspecified
+TINGLING,Other/Unspecified
+EVALUATION OF CHILD ABUSE,Other/Unspecified
+ATV ACCIDENT,Other/Unspecified
+HYDROCEPHALUS,Other/Unspecified
+SHINGLES,Other/Unspecified
+MEDICATION QUESTION,Other/Unspecified
+BLEEDING DISORDER,Other/Unspecified
+URGE INCONTINENCE,Other/Unspecified
+PILONIDAL CYST,Other/Unspecified
+BLOATED,Other/Unspecified
+NEPHROPATHY,Other/Unspecified
+MULTIPLE SCLEROSIS,Other/Unspecified
+NAIL PROBLEM,Other/Unspecified
+EXCESSIVE DRUG USE,Other/Unspecified
+PERIPHERAL VASCULAR DISEASE,Other/Unspecified
+METABOLIC SYNDROME,Other/Unspecified
+DIVERTICULITIS,Other/Unspecified
+IV MEDICATION,Other/Unspecified
+TINNITUS,Other/Unspecified
+CIRCUMCISION,Other/Unspecified
+DIPLOPIA,Other/Unspecified
+WELL CHILD,Other/Unspecified
+FONTANELE BULGING,Other/Unspecified
+POLYDIPSIA,Other/Unspecified
+CYANOSIS,Other/Unspecified
+HEAD LICE,Other/Unspecified
+NUTRITION COUNSELING,Other/Unspecified
+RESTLESS LEGS,Other/Unspecified
+CARBON MONOXIDE,Other/Unspecified
+BLADDER DYSFUNCTION,Other/Unspecified
+SUPRAVENTRICULAR TACHYCARDIA,Other/Unspecified
+HEARTBURN,Other/Unspecified
+SCHIZOPHRENIA,Other/Unspecified
+ELEVATED CREATININE,Other/Unspecified
+EATING DISORDER,Other/Unspecified
+SWEATS,Other/Unspecified
+HOARSE,Other/Unspecified
+BRAIN TUMOR,Other/Unspecified
+RESTLESS LEG SYNDROME,Other/Unspecified
+PARANOID,Other/Unspecified
+ULCERATIVE COLITIS,Other/Unspecified
+TONSILLAR MASS,Other/Unspecified
+RUNNY NOSE,Other/Unspecified
+ANOREXIA,Other/Unspecified
+PERSPIRATION,Other/Unspecified
+PTOSIS,Other/Unspecified
+LIGHTENING STRIKE,Other/Unspecified
+SCAN,Other/Unspecified
+HOMICIDAL,Other/Unspecified
+LAB,Other/Unspecified
+DETACHED RETINA,Other/Unspecified
+POST OP TUBES,Other/Unspecified
+ANAL ITCHING,Other/Unspecified
+FECAL INCONTINENCE,Other/Unspecified
+MEDICAL CLEARANCE,Other/Unspecified
+HICCUPS,Other/Unspecified
+FIBROMYALGIA,Other/Unspecified
+ENDOCARDITIS,Other/Unspecified
+HYPERTHERMIA,Other/Unspecified
+CRITICAL TEST RESULT,Other/Unspecified
+CANCER,Other/Unspecified
+PHLEBITIS,Other/Unspecified
+POST-PARTUM COMPLICATIONS,Other/Unspecified
+HAIR LOSS,Other/Unspecified
+EVALUATION OF DOMESTIC VIOLENCE,Other/Unspecified
+SPEECH LANGUAGE DELAY,Other/Unspecified
+OVARIAN CYST,Other/Unspecified
+URETHRAL PROBLEM,Other/Unspecified
+WELLNESS PHYSICAL,Other/Unspecified
+PRE-ECLAMPSIA,Other/Unspecified
+HYPERCALCEMIA,Other/Unspecified
+INCISIONAL PROBLEM OF CHEST,Other/Unspecified
+LYMPHADENOPATHY,Other/Unspecified
+REFILL REQUEST,Other/Unspecified
+NOSE PROBLEM,Other/Unspecified
+HEMOPHILIA,Other/Unspecified
+CRAMPING,Other/Unspecified
+DELIRIUM TREMENS (DTS),Other/Unspecified
+SPOTS AND/OR FLOATERS,Other/Unspecified
+MOTORCYCLE CRASH,Other/Unspecified
+CONJUNCTIVITIS,Other/Unspecified
+ABNORMAL ELECTROCARDIOGRAM (ECG) (EKG),Other/Unspecified
+NEUTROPENIA,Other/Unspecified
+NEUROPATHY,Other/Unspecified
+ALLERGIES,Other/Unspecified
+POISON IVY,Other/Unspecified
+LAB ONLY,Other/Unspecified
+PALLOR,Other/Unspecified
+NEAR DROWNING,Other/Unspecified
+ASCITES,Other/Unspecified
+FOREIGN BODY IN VAGINA,Other/Unspecified
+DYSKINESIA,Other/Unspecified
+IMM/INJ,Other/Unspecified
+INCISIONAL PROBLEM OF BREAST,Other/Unspecified
+CLOUDY VISION,Other/Unspecified
+SUNBURN,Other/Unspecified
+GASTROESOPHAGEAL REFLUX,Other/Unspecified
+DYSPHASIA,Other/Unspecified
+PERIPHERAL NEUROPATHY,Other/Unspecified
+PHOTOPHOBIA,Other/Unspecified
+SPLINT,Other/Unspecified
+MEDICATION PROBLEM,Other/Unspecified
+AV FISTULA,Other/Unspecified
+SARCOMA,Other/Unspecified
+CONTACT LENS IRRITATION,Other/Unspecified
+EXCESSIVE SWEATING,Other/Unspecified
+BICYCLE ACCIDENT,Other/Unspecified
+STRESS,Other/Unspecified
+BLADDER PROBLEM,Other/Unspecified
+CHEMICAL EXPOSURE,Other/Unspecified
+NAVEL PROBLEMS,Other/Unspecified
+TOENAIL,Other/Unspecified
+PRIAPISM,Other/Unspecified
+THRUSH,Other/Unspecified
+EAR FULLNESS,Other/Unspecified
+HAIR/SCALP PROBLEM,Other/Unspecified
+ENCOPRESIS,Other/Unspecified
+EXPOSURE TO COMMUNICABLE DISEASE,Other/Unspecified
+CHANGE IN STOOLS,Other/Unspecified
+TEMPOROMANDIBULAR JOINT PAIN,Pain
+BACK PAIN,Pain
+LEG PAIN,Pain
+FOOT PAIN,Pain
+EAR PAIN,Pain
+HAND PAIN,Pain
+KNEE PAIN,Pain
+ARM PAIN,Pain
+DENTAL PAIN,Pain
+ANKLE PAIN,Pain
+UPPER BACK PAIN,Pain
+RIB PAIN,Pain
+INCISIONAL PAIN,Pain
+SHOULDER PAIN,Pain
+NECK PAIN,Pain
+FINGER PAIN,Pain
+TOE PAIN,Pain
+BREAST PAIN,Pain
+HIP PAIN,Pain
+INFLAMMATORY ARTHRITIS,Pain
+MOUTH PAIN,Pain
+GOUTY ARTHRITIS,Pain
+PAIN PUMP QUESTIONS,Pain
+TAILBONE PAIN,Pain
+GROIN PAIN,Pain
+JOINT PAIN,Pain
+FACIAL PAIN,Pain
+CHRONIC PAIN,Pain
+ARTHRITIS,Pain
+MUSCLE PAIN,Pain
+ELBOW PAIN,Pain
+PAIN,Pain
+ORAL PAIN,Pain
+CALF PAIN,Pain
+THROAT PAIN,Pain
+POST OP PAIN,Pain
+SPINE CENTER REFERRAL,Pain
+EYE PAIN,Pain
+WRIST PAIN,Pain
+RHEUMATOID ARTHRITIS,Pain
+PSORIATIC ARTHRITIS,Pain
+JAW PAIN,Pain
+FLU-LIKE SYMPTOMS,Respiratory
+COPD,Respiratory
+SHORTNESS OF BREATH,Respiratory
+LUNG CANCER,Respiratory
+COUGH,Respiratory
+PULMONARY FIBROSIS,Respiratory
+NASAL PAIN,Respiratory
+RESPIRATORY DISTRESS,Respiratory
+INFLUENZA,Respiratory
+RESPIRATORY ARREST,Respiratory
+NASAL CONGESTION,Respiratory
+CHRONIC RESPIRATORY FAILURE,Respiratory
+BREATHING PROBLEM,Respiratory
+GROWTH IN NASAL PASSAGE,Respiratory
+CONGESTION,Respiratory
+WHEEZING,Respiratory
+PNEUMONIA,Respiratory
+NASAL POLYPS,Respiratory
+ASTHMA,Respiratory
+PULMONARY EMBOLUS,Respiratory
+G TUBE FOLLOW UP,Surgical/Procedural
+SURGICAL FOLLOWUP,Surgical/Procedural
+CAST REPAIR,Surgical/Procedural
+ABNORMAL G TUBE,Surgical/Procedural
+CATHETER,Surgical/Procedural
+TRANSPLANT SURGERY,Surgical/Procedural
+CAST REMOVAL,Surgical/Procedural
+ABN FOLLOW-UP,Surgical/Procedural
+SUTURE/ STAPLE REMOVAL,Surgical/Procedural
+CAST PROBLEM,Surgical/Procedural
+TICK REMOVAL,Surgical/Procedural
+SURGERY,Surgical/Procedural
+BREAST FEEDING,Surgical/Procedural
+FEEDING INTOLERANCE,Surgical/Procedural
+FEEDING TUBE COMPLICATION,Surgical/Procedural
+URGENT CARE FOLLOW UP,Surgical/Procedural
+POST-OP HERNIA,Surgical/Procedural
+LESION REMOVAL,Surgical/Procedural
+G TUBE CHANGE,Surgical/Procedural
+TRACHEOSTOMY TUBE CHANGE,Surgical/Procedural
+FEEDING DIFFICULTIES,Surgical/Procedural
+RN HTN CLINIC FOLLOW UP,Surgical/Procedural
+OUTPATIENT DIALYSIS FOLLOW-UP,Surgical/Procedural
