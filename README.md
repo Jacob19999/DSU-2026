@@ -61,6 +61,37 @@ Forecast future daily ED volumes for **September and October 2025** (Calendar Ye
   - Total encounters
   - Admitted encounters
 
+## Baseline Model
+
+The baseline model consists of two pipelines for forecasting ED volumes:
+
+### Pipeline 1: Direct Volume Prediction
+Takes the entire dataset and uses machine learning models (e.g., Ensemble methods) to predict volume directly.
+
+### Pipeline 2: Category-Based Prediction
+Categorizes reason codes into subcategories with different seasonal trends. Runs predictions for each category/subcategory, then aggregates results for the final prediction.
+
+### Data Ingestion
+
+The data ingestion module (`baseline_model/data_ingestion/`) provides utilities for loading and splitting the dataset:
+
+- **`load_dataset()`**: Loads the DSU dataset CSV and converts Date to datetime
+- **`split_by_date_range()`**: Splits data into train/test sets by date ranges
+- **`create_validation_splits()`**: Creates all validation splits for cross-validation
+- **`aggregate_to_blocks()`**: Aggregates hourly data to 6-hour time blocks
+
+### Validation Strategy
+
+Since the competition requires predicting 2 months into the future (September-October 2025) and we don't have the unlabeled dataset, we use 2025 data split by 2-month increments for validation.
+
+**4 Validation Periods** (each using 2-month test windows):
+1. **Period 1**: Train up to Dec 2024, predict Jan-Feb 2025
+2. **Period 2**: Train up to Feb 2025, predict Mar-Apr 2025
+3. **Period 3**: Train up to Apr 2025, predict May-Jun 2025
+4. **Period 4**: Train up to Jun 2025, predict Jul-Aug 2025
+
+The final performance of each pipeline is the **average performance across all 4 validation periods**.
+
 ### Analysis Script
 
 The `analyze_dataset.py` script provides comprehensive exploratory data analysis including:
