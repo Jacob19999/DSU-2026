@@ -1622,6 +1622,12 @@ def run_step4(step1_results: Dict, step3_results: Dict, feature_df: pd.DataFrame
     for target_type in ['total_enc', 'admit_rate']:
         if target_type in aggregated_params:
             params = aggregated_params[target_type].copy()
+            # XGBoost requires int for these; np.median yields float
+            for k in ('n_estimators', 'max_depth', 'min_child_weight'):
+                if k in params:
+                    params[k] = int(params[k])
+            # Remove early_stopping_rounds for final model (no validation set)
+            params.pop('early_stopping_rounds', None)
             params.update({
                 'objective': 'reg:squarederror',
                 'eval_metric': 'mae',
@@ -1901,8 +1907,8 @@ def run_step5(step1_results: Dict, step3_results: Dict, step4_results: Dict = No
         detailed_results.append(period_result)
 
         logger.info(f"Period {period_idx + 1} results:")
-        logger.info(".2f")
-        logger.info(".4f")
+        logger.info(f"  Total Enc MAE: {period_metrics['total_enc_mae']:.2f}, WAPE: {period_metrics['total_enc_wape']:.4f}")
+        logger.info(f"  Admitted Enc MAE: {period_metrics['admitted_enc_mae']:.2f}, WAPE: {period_metrics['admitted_enc_wape']:.4f}")
 
     # 5.4 Error Analysis
     logger.info("\n" + "-" * 60)
@@ -1921,11 +1927,17 @@ def run_step5(step1_results: Dict, step3_results: Dict, step4_results: Dict = No
     abs_errors = np.abs(errors)
     pct_errors = abs_errors / np.maximum(all_actual, 1e-6)
 
+    # Calculate R² for overall
+    overall_r2 = 1 - np.sum((all_actual - all_predicted)**2) / np.maximum(np.sum((all_actual - np.mean(all_actual))**2), 1e-6)
+    overall_wape = np.sum(np.abs(all_actual - all_predicted)) / np.maximum(np.sum(all_actual), 1e-6)
+    
     error_analysis['overall'] = {
         'mean_error': np.mean(errors),
         'mean_abs_error': np.mean(abs_errors),
         'median_abs_error': np.median(abs_errors),
         'rmse': np.sqrt(np.mean(errors**2)),
+        'r2': overall_r2,
+        'wape': overall_wape,
         'mean_pct_error': np.mean(pct_errors) * 100,
         'median_pct_error': np.median(pct_errors) * 100
     }
@@ -1936,10 +1948,13 @@ def run_step5(step1_results: Dict, step3_results: Dict, step4_results: Dict = No
         site_mask = all_metadata['Site'] == site
         site_actual = all_actual[site_mask]
         site_predicted = all_predicted[site_mask]
+        site_r2 = 1 - np.sum((site_actual - site_predicted)**2) / np.maximum(np.sum((site_actual - np.mean(site_actual))**2), 1e-6)
 
         site_errors[site] = {
             'samples': len(site_actual),
             'mae': mean_absolute_error(site_actual, site_predicted),
+            'rmse': np.sqrt(mean_squared_error(site_actual, site_predicted)),
+            'r2': site_r2,
             'wape': np.sum(np.abs(site_actual - site_predicted)) / np.maximum(np.sum(site_actual), 1e-6),
             'mean_pct_error': np.mean(np.abs(site_actual - site_predicted) / np.maximum(site_actual, 1e-6)) * 100
         }
@@ -1952,10 +1967,13 @@ def run_step5(step1_results: Dict, step3_results: Dict, step4_results: Dict = No
         block_mask = all_metadata['Block'] == block
         block_actual = all_actual[block_mask]
         block_predicted = all_predicted[block_mask]
+        block_r2 = 1 - np.sum((block_actual - block_predicted)**2) / np.maximum(np.sum((block_actual - np.mean(block_actual))**2), 1e-6)
 
         block_errors[block] = {
             'samples': len(block_actual),
             'mae': mean_absolute_error(block_actual, block_predicted),
+            'rmse': np.sqrt(mean_squared_error(block_actual, block_predicted)),
+            'r2': block_r2,
             'wape': np.sum(np.abs(block_actual - block_predicted)) / np.maximum(np.sum(block_actual), 1e-6),
             'mean_pct_error': np.mean(np.abs(block_actual - block_predicted) / np.maximum(block_actual, 1e-6)) * 100
         }
@@ -1990,17 +2008,21 @@ def run_step5(step1_results: Dict, step3_results: Dict, step4_results: Dict = No
     error_analysis['by_month'] = monthly_dict
 
     logger.info("Overall error analysis:")
-    logger.info(".2f")
-    logger.info(".2f")
-    logger.info(".1f")
+    logger.info(f"  R²: {error_analysis['overall']['r2']:.4f}")
+    logger.info(f"  WAPE: {error_analysis['overall']['wape']:.4f}")
+    logger.info(f"  MAE: {error_analysis['overall']['mean_abs_error']:.2f}")
+    logger.info(f"  Median AE: {error_analysis['overall']['median_abs_error']:.2f}")
+    logger.info(f"  RMSE: {error_analysis['overall']['rmse']:.2f}")
+    logger.info(f"  Mean Error (Bias): {error_analysis['overall']['mean_error']:.2f}")
+    logger.info(f"  MAPE: {error_analysis['overall']['mean_pct_error']:.1f}%")
 
     logger.info("\nSite-specific errors:")
     for site, metrics in site_errors.items():
-        logger.info(".2f")
+        logger.info(f"  {site}: R²={metrics['r2']:.4f}, MAE={metrics['mae']:.2f}, WAPE={metrics['wape']:.4f}, n={metrics['samples']}")
 
     logger.info("\nBlock-specific errors:")
     for block, metrics in block_errors.items():
-        logger.info(".2f")
+        logger.info(f"  Block {block}: R²={metrics['r2']:.4f}, MAE={metrics['mae']:.2f}, WAPE={metrics['wape']:.4f}, n={metrics['samples']}")
 
     # 5.5 Model Diagnostics
     logger.info("\n" + "-" * 60)
@@ -2040,8 +2062,9 @@ def run_step5(step1_results: Dict, step3_results: Dict, step4_results: Dict = No
     }
 
     logger.info("Model stability across validation periods:")
-    logger.info(".4f")
-    logger.info(".4f")
+    logger.info(f"  WAPE Mean: {diagnostics['stability']['wape_mean']:.4f}")
+    logger.info(f"  WAPE Std: {diagnostics['stability']['wape_std']:.4f}")
+    logger.info(f"  WAPE CV: {diagnostics['stability']['wape_cv']:.4f}")
 
     # Generate diagnostic plots if plotting is available
     if PLOTTING_AVAILABLE and save_plots:
@@ -2050,41 +2073,480 @@ def run_step5(step1_results: Dict, step3_results: Dict, step4_results: Dict = No
         plots_dir = get_data_dir() / "plots"
         plots_dir.mkdir(exist_ok=True)
 
-        # Error distribution plot
-        fig = px.histogram(x=errors, nbins=50, title="Prediction Error Distribution")
-        fig.update_layout(xaxis_title="Error (Actual - Predicted)", yaxis_title="Frequency")
-        error_plot_path = plots_dir / "error_distribution.html"
-        fig.write_html(str(error_plot_path))
-        validation_results['plots_saved'].append(str(error_plot_path))
-
-        # Actual vs Predicted scatter plot
-        fig = px.scatter(x=all_actual, y=all_predicted, opacity=0.6,
-                        title="Actual vs Predicted Admitted Encounters")
-        fig.update_layout(xaxis_title="Actual", yaxis_title="Predicted")
-        # Add 45-degree line
-        fig.add_trace(go.Scatter(x=[all_actual.min(), all_actual.max()],
-                               y=[all_actual.min(), all_actual.max()],
-                               mode='lines', name='Perfect Prediction',
-                               line=dict(color='red', dash='dash')))
+        # =====================================================================
+        # PLOT 1: Comprehensive Actual vs Predicted with metrics annotation
+        # =====================================================================
+        from scipy import stats as scipy_stats
+        
+        # Calculate additional metrics for annotation
+        r2 = 1 - np.sum((all_actual - all_predicted)**2) / np.sum((all_actual - np.mean(all_actual))**2)
+        mae = np.mean(np.abs(all_actual - all_predicted))
+        rmse = np.sqrt(np.mean((all_actual - all_predicted)**2))
+        mape = np.mean(np.abs((all_actual - all_predicted) / np.maximum(all_actual, 1))) * 100
+        wape = np.sum(np.abs(all_actual - all_predicted)) / np.sum(all_actual)
+        bias = np.mean(all_predicted - all_actual)
+        median_ae = np.median(np.abs(all_actual - all_predicted))
+        max_error = np.max(np.abs(all_actual - all_predicted))
+        
+        # Correlation
+        pearson_r, pearson_p = scipy_stats.pearsonr(all_actual, all_predicted)
+        spearman_r, spearman_p = scipy_stats.spearmanr(all_actual, all_predicted)
+        
+        fig = make_subplots(rows=1, cols=1)
+        
+        # Add scatter points with color by site
+        for site in all_metadata['Site'].unique():
+            site_mask = all_metadata['Site'].values == site
+            fig.add_trace(go.Scatter(
+                x=all_actual[site_mask], y=all_predicted[site_mask],
+                mode='markers', name=site, opacity=0.6,
+                marker=dict(size=5)
+            ))
+        
+        # Perfect prediction line
+        min_val, max_val = min(all_actual.min(), all_predicted.min()), max(all_actual.max(), all_predicted.max())
+        fig.add_trace(go.Scatter(
+            x=[min_val, max_val], y=[min_val, max_val],
+            mode='lines', name='Perfect (y=x)',
+            line=dict(color='red', dash='dash', width=2)
+        ))
+        
+        # Regression line
+        slope, intercept, r_val, p_val, std_err = scipy_stats.linregress(all_actual, all_predicted)
+        reg_line_y = slope * np.array([min_val, max_val]) + intercept
+        fig.add_trace(go.Scatter(
+            x=[min_val, max_val], y=reg_line_y,
+            mode='lines', name=f'Regression (slope={slope:.3f})',
+            line=dict(color='blue', dash='dot', width=2)
+        ))
+        
+        # Metrics annotation
+        metrics_text = (
+            f"<b>Performance Metrics</b><br>"
+            f"R² = {r2:.4f}<br>"
+            f"Pearson r = {pearson_r:.4f}<br>"
+            f"Spearman ρ = {spearman_r:.4f}<br>"
+            f"MAE = {mae:.2f}<br>"
+            f"MedAE = {median_ae:.2f}<br>"
+            f"RMSE = {rmse:.2f}<br>"
+            f"MAPE = {mape:.1f}%<br>"
+            f"WAPE = {wape:.4f}<br>"
+            f"Bias = {bias:.2f}<br>"
+            f"Max Error = {max_error:.2f}<br>"
+            f"n = {len(all_actual)}"
+        )
+        
+        fig.add_annotation(
+            x=0.02, y=0.98, xref='paper', yref='paper',
+            text=metrics_text, showarrow=False,
+            font=dict(size=11), align='left',
+            bgcolor='rgba(255,255,255,0.8)',
+            bordercolor='gray', borderwidth=1
+        )
+        
+        fig.update_layout(
+            title='<b>Actual vs Predicted Admitted Encounters</b>',
+            xaxis_title='Actual Admitted Encounters',
+            yaxis_title='Predicted Admitted Encounters',
+            legend=dict(x=1.02, y=1),
+            height=700, width=1000
+        )
         scatter_plot_path = plots_dir / "actual_vs_predicted.html"
         fig.write_html(str(scatter_plot_path))
         validation_results['plots_saved'].append(str(scatter_plot_path))
 
-        # Time series of errors
-        error_df = pd.DataFrame({
-            'date': all_metadata['Date'],
-            'error': errors,
-            'abs_error': abs_errors
-        }).groupby('date').mean().reset_index()
+        # =====================================================================
+        # PLOT 2: Residuals Analysis (4-panel diagnostic)
+        # =====================================================================
+        residuals = all_actual - all_predicted
+        standardized_residuals = (residuals - np.mean(residuals)) / np.std(residuals)
+        
+        fig = make_subplots(
+            rows=2, cols=2,
+            subplot_titles=(
+                'Residuals vs Fitted',
+                'Q-Q Plot (Normality Check)',
+                'Scale-Location Plot',
+                'Residuals Distribution'
+            )
+        )
+        
+        # Panel 1: Residuals vs Fitted
+        fig.add_trace(go.Scatter(
+            x=all_predicted, y=residuals,
+            mode='markers', marker=dict(size=4, opacity=0.5),
+            name='Residuals'
+        ), row=1, col=1)
+        fig.add_hline(y=0, line_dash='dash', line_color='red', row=1, col=1)
+        
+        # Panel 2: Q-Q Plot
+        theoretical_quantiles = scipy_stats.norm.ppf(np.linspace(0.01, 0.99, len(standardized_residuals)))
+        sorted_residuals = np.sort(standardized_residuals)
+        fig.add_trace(go.Scatter(
+            x=theoretical_quantiles, y=sorted_residuals,
+            mode='markers', marker=dict(size=4, opacity=0.5),
+            name='Sample Quantiles'
+        ), row=1, col=2)
+        fig.add_trace(go.Scatter(
+            x=[-3, 3], y=[-3, 3],
+            mode='lines', line=dict(color='red', dash='dash'),
+            name='Normal Line'
+        ), row=1, col=2)
+        
+        # Panel 3: Scale-Location (sqrt of abs standardized residuals)
+        sqrt_abs_residuals = np.sqrt(np.abs(standardized_residuals))
+        fig.add_trace(go.Scatter(
+            x=all_predicted, y=sqrt_abs_residuals,
+            mode='markers', marker=dict(size=4, opacity=0.5),
+            name='√|Standardized Residuals|'
+        ), row=2, col=1)
+        
+        # Panel 4: Residuals histogram
+        fig.add_trace(go.Histogram(
+            x=residuals, nbinsx=50, name='Residual Distribution'
+        ), row=2, col=2)
+        
+        fig.update_xaxes(title_text='Fitted Values', row=1, col=1)
+        fig.update_yaxes(title_text='Residuals', row=1, col=1)
+        fig.update_xaxes(title_text='Theoretical Quantiles', row=1, col=2)
+        fig.update_yaxes(title_text='Sample Quantiles', row=1, col=2)
+        fig.update_xaxes(title_text='Fitted Values', row=2, col=1)
+        fig.update_yaxes(title_text='√|Std Residuals|', row=2, col=1)
+        fig.update_xaxes(title_text='Residual Value', row=2, col=2)
+        fig.update_yaxes(title_text='Frequency', row=2, col=2)
+        
+        fig.update_layout(
+            title='<b>Residuals Diagnostic Plots</b>',
+            height=800, width=1000, showlegend=False
+        )
+        residuals_plot_path = plots_dir / "residuals_diagnostics.html"
+        fig.write_html(str(residuals_plot_path))
+        validation_results['plots_saved'].append(str(residuals_plot_path))
 
-        fig = px.line(error_df, x='date', y='abs_error',
-                     title="Mean Absolute Error Over Time")
-        fig.update_layout(xaxis_title="Date", yaxis_title="Mean Absolute Error")
+        # =====================================================================
+        # PLOT 3: Error Distribution with statistics
+        # =====================================================================
+        fig = go.Figure()
+        fig.add_trace(go.Histogram(
+            x=errors, nbinsx=50, name='Error Distribution',
+            marker_color='steelblue'
+        ))
+        
+        # Add vertical lines for mean and median
+        fig.add_vline(x=np.mean(errors), line_dash='dash', line_color='red',
+                      annotation_text=f'Mean: {np.mean(errors):.2f}')
+        fig.add_vline(x=np.median(errors), line_dash='dot', line_color='green',
+                      annotation_text=f'Median: {np.median(errors):.2f}')
+        
+        # Shapiro-Wilk test for normality (on sample if too large)
+        sample_size = min(5000, len(errors))
+        sample_errors = np.random.choice(errors, sample_size, replace=False)
+        shapiro_stat, shapiro_p = scipy_stats.shapiro(sample_errors)
+        
+        stats_text = (
+            f"<b>Error Statistics</b><br>"
+            f"Mean: {np.mean(errors):.3f}<br>"
+            f"Median: {np.median(errors):.3f}<br>"
+            f"Std Dev: {np.std(errors):.3f}<br>"
+            f"Skewness: {scipy_stats.skew(errors):.3f}<br>"
+            f"Kurtosis: {scipy_stats.kurtosis(errors):.3f}<br>"
+            f"Shapiro p-value: {shapiro_p:.4f}"
+        )
+        
+        fig.add_annotation(
+            x=0.98, y=0.98, xref='paper', yref='paper',
+            text=stats_text, showarrow=False,
+            font=dict(size=11), align='left',
+            bgcolor='rgba(255,255,255,0.8)',
+            bordercolor='gray', borderwidth=1
+        )
+        
+        fig.update_layout(
+            title='<b>Prediction Error Distribution</b>',
+            xaxis_title='Error (Actual - Predicted)',
+            yaxis_title='Frequency',
+            height=500, width=800
+        )
+        error_plot_path = plots_dir / "error_distribution.html"
+        fig.write_html(str(error_plot_path))
+        validation_results['plots_saved'].append(str(error_plot_path))
+
+        # =====================================================================
+        # PLOT 4: Performance by Site (boxplot + metrics table)
+        # =====================================================================
+        site_df = pd.DataFrame({
+            'Site': all_metadata['Site'].values,
+            'Actual': all_actual,
+            'Predicted': all_predicted,
+            'Error': errors,
+            'Abs_Error': abs_errors
+        })
+        
+        fig = make_subplots(
+            rows=2, cols=2,
+            subplot_titles=(
+                'Error Distribution by Site',
+                'Actual vs Predicted by Site',
+                'MAE by Site',
+                'R² by Site'
+            ),
+            specs=[[{}, {}], [{'type': 'bar'}, {'type': 'bar'}]]
+        )
+        
+        # Panel 1: Error boxplot by site
+        for site in sorted(site_df['Site'].unique()):
+            site_data = site_df[site_df['Site'] == site]
+            fig.add_trace(go.Box(y=site_data['Error'], name=site), row=1, col=1)
+        
+        # Panel 2: Scatter by site
+        for site in sorted(site_df['Site'].unique()):
+            site_data = site_df[site_df['Site'] == site]
+            fig.add_trace(go.Scatter(
+                x=site_data['Actual'], y=site_data['Predicted'],
+                mode='markers', name=site, opacity=0.5,
+                marker=dict(size=4)
+            ), row=1, col=2)
+        
+        # Calculate per-site metrics
+        site_metrics = []
+        for site in sorted(site_df['Site'].unique()):
+            site_data = site_df[site_df['Site'] == site]
+            site_r2 = 1 - np.sum((site_data['Actual'] - site_data['Predicted'])**2) / \
+                      np.maximum(np.sum((site_data['Actual'] - site_data['Actual'].mean())**2), 1e-6)
+            site_mae = site_data['Abs_Error'].mean()
+            site_metrics.append({'Site': site, 'MAE': site_mae, 'R2': site_r2})
+        
+        site_metrics_df = pd.DataFrame(site_metrics)
+        
+        # Panel 3: MAE bar chart
+        fig.add_trace(go.Bar(
+            x=site_metrics_df['Site'], y=site_metrics_df['MAE'],
+            name='MAE', marker_color='steelblue'
+        ), row=2, col=1)
+        
+        # Panel 4: R² bar chart
+        fig.add_trace(go.Bar(
+            x=site_metrics_df['Site'], y=site_metrics_df['R2'],
+            name='R²', marker_color='seagreen'
+        ), row=2, col=2)
+        
+        fig.update_layout(
+            title='<b>Performance Analysis by Site</b>',
+            height=900, width=1100, showlegend=False
+        )
+        site_plot_path = plots_dir / "performance_by_site.html"
+        fig.write_html(str(site_plot_path))
+        validation_results['plots_saved'].append(str(site_plot_path))
+
+        # =====================================================================
+        # PLOT 5: Performance by Time Block
+        # =====================================================================
+        block_df = pd.DataFrame({
+            'Block': all_metadata['Block'].values,
+            'Actual': all_actual,
+            'Predicted': all_predicted,
+            'Error': errors,
+            'Abs_Error': abs_errors
+        })
+        
+        fig = make_subplots(
+            rows=1, cols=2,
+            subplot_titles=('Error by Time Block', 'MAE & R² by Block'),
+            specs=[[{}, {'secondary_y': True}]]
+        )
+        
+        block_order = sorted(block_df['Block'].unique())
+        
+        # Panel 1: Error boxplot by block
+        for block in block_order:
+            block_data = block_df[block_df['Block'] == block]
+            fig.add_trace(go.Box(y=block_data['Error'], name=str(block)), row=1, col=1)
+        
+        # Calculate per-block metrics
+        block_metrics = []
+        for block in block_order:
+            block_data = block_df[block_df['Block'] == block]
+            block_r2 = 1 - np.sum((block_data['Actual'] - block_data['Predicted'])**2) / \
+                       np.maximum(np.sum((block_data['Actual'] - block_data['Actual'].mean())**2), 1e-6)
+            block_mae = block_data['Abs_Error'].mean()
+            block_metrics.append({'Block': block, 'MAE': block_mae, 'R2': block_r2})
+        
+        block_metrics_df = pd.DataFrame(block_metrics)
+        
+        # Panel 2: MAE and R² bars
+        fig.add_trace(go.Bar(
+            x=block_metrics_df['Block'].astype(str), y=block_metrics_df['MAE'],
+            name='MAE', marker_color='steelblue'
+        ), row=1, col=2, secondary_y=False)
+        
+        fig.add_trace(go.Scatter(
+            x=block_metrics_df['Block'].astype(str), y=block_metrics_df['R2'],
+            name='R²', mode='lines+markers', marker_color='red'
+        ), row=1, col=2, secondary_y=True)
+        
+        fig.update_yaxes(title_text='MAE', row=1, col=2, secondary_y=False)
+        fig.update_yaxes(title_text='R²', row=1, col=2, secondary_y=True)
+        
+        fig.update_layout(
+            title='<b>Performance Analysis by Time Block</b>',
+            height=500, width=1000
+        )
+        block_plot_path = plots_dir / "performance_by_block.html"
+        fig.write_html(str(block_plot_path))
+        validation_results['plots_saved'].append(str(block_plot_path))
+
+        # =====================================================================
+        # PLOT 6: Time Series of Predictions vs Actuals
+        # =====================================================================
+        ts_df = pd.DataFrame({
+            'Date': all_metadata['Date'].values,
+            'Actual': all_actual,
+            'Predicted': all_predicted
+        }).groupby('Date').sum().reset_index()
+        
+        fig = make_subplots(
+            rows=2, cols=1,
+            subplot_titles=('Daily Total: Actual vs Predicted', 'Daily Prediction Error'),
+            row_heights=[0.6, 0.4]
+        )
+        
+        # Panel 1: Time series
+        fig.add_trace(go.Scatter(
+            x=ts_df['Date'], y=ts_df['Actual'],
+            mode='lines', name='Actual', line=dict(color='blue')
+        ), row=1, col=1)
+        fig.add_trace(go.Scatter(
+            x=ts_df['Date'], y=ts_df['Predicted'],
+            mode='lines', name='Predicted', line=dict(color='red', dash='dash')
+        ), row=1, col=1)
+        
+        # Panel 2: Error over time
+        ts_df['Error'] = ts_df['Actual'] - ts_df['Predicted']
+        fig.add_trace(go.Bar(
+            x=ts_df['Date'], y=ts_df['Error'],
+            name='Error', marker_color=np.where(ts_df['Error'] > 0, 'green', 'red')
+        ), row=2, col=1)
+        fig.add_hline(y=0, line_dash='dash', line_color='black', row=2, col=1)
+        
+        fig.update_layout(
+            title='<b>Time Series: Actual vs Predicted</b>',
+            height=700, width=1100
+        )
         time_series_plot_path = plots_dir / "error_time_series.html"
         fig.write_html(str(time_series_plot_path))
         validation_results['plots_saved'].append(str(time_series_plot_path))
 
+        # =====================================================================
+        # PLOT 7: Validation Period Comparison
+        # =====================================================================
+        period_data = []
+        for r in detailed_results:
+            period_data.append({
+                'Period': r['metrics']['period'],
+                'WAPE': r['metrics']['admitted_enc_wape'],
+                'MAE': r['metrics']['admitted_enc_mae'],
+                'RMSE': r['metrics']['admitted_enc_rmse'],
+                'R²': r['metrics']['admitted_enc_r2'],
+                'MAPE': r['metrics']['admitted_enc_mape']
+            })
+        period_df = pd.DataFrame(period_data)
+        
+        fig = make_subplots(
+            rows=2, cols=2,
+            subplot_titles=('WAPE by Period', 'R² by Period', 'MAE by Period', 'All Metrics')
+        )
+        
+        # Individual metric plots
+        fig.add_trace(go.Bar(x=period_df['Period'].astype(str), y=period_df['WAPE'], 
+                            name='WAPE', marker_color='coral'), row=1, col=1)
+        fig.add_trace(go.Bar(x=period_df['Period'].astype(str), y=period_df['R²'], 
+                            name='R²', marker_color='seagreen'), row=1, col=2)
+        fig.add_trace(go.Bar(x=period_df['Period'].astype(str), y=period_df['MAE'], 
+                            name='MAE', marker_color='steelblue'), row=2, col=1)
+        
+        # Combined line chart
+        for col in ['WAPE', 'MAE', 'R²']:
+            # Normalize for comparison
+            normalized = (period_df[col] - period_df[col].min()) / (period_df[col].max() - period_df[col].min() + 1e-6)
+            fig.add_trace(go.Scatter(
+                x=period_df['Period'].astype(str), y=normalized,
+                mode='lines+markers', name=f'{col} (normalized)'
+            ), row=2, col=2)
+        
+        fig.update_layout(
+            title='<b>Performance Across Validation Periods</b>',
+            height=800, width=1000
+        )
+        period_plot_path = plots_dir / "validation_periods.html"
+        fig.write_html(str(period_plot_path))
+        validation_results['plots_saved'].append(str(period_plot_path))
+
+        # =====================================================================
+        # PLOT 8: Feature Importance (if available)
+        # =====================================================================
+        if diagnostics.get('feature_importance') and diagnostics['feature_importance'].get('total_enc_top_features'):
+            top_features = diagnostics['feature_importance']['total_enc_top_features'][:20]
+            feature_names = [f[0] for f in top_features]
+            feature_importance = [f[1] for f in top_features]
+            
+            fig = go.Figure(go.Bar(
+                x=feature_importance[::-1],
+                y=feature_names[::-1],
+                orientation='h',
+                marker_color='steelblue'
+            ))
+            
+            fig.update_layout(
+                title='<b>Top 20 Feature Importance (XGBoost Gain)</b>',
+                xaxis_title='Importance (Gain)',
+                yaxis_title='Feature',
+                height=600, width=900
+            )
+            feature_plot_path = plots_dir / "feature_importance.html"
+            fig.write_html(str(feature_plot_path))
+            validation_results['plots_saved'].append(str(feature_plot_path))
+
+        # =====================================================================
+        # Store comprehensive metrics in validation_results
+        # =====================================================================
+        validation_results['comprehensive_metrics'] = {
+            'r2': float(r2),
+            'pearson_r': float(pearson_r),
+            'spearman_r': float(spearman_r),
+            'mae': float(mae),
+            'median_ae': float(median_ae),
+            'rmse': float(rmse),
+            'mape': float(mape),
+            'wape': float(wape),
+            'bias': float(bias),
+            'max_error': float(max_error),
+            'std_error': float(np.std(errors)),
+            'skewness': float(scipy_stats.skew(errors)),
+            'kurtosis': float(scipy_stats.kurtosis(errors)),
+            'n_samples': int(len(all_actual))
+        }
+        
+        # Per-site metrics
+        validation_results['site_metrics'] = site_metrics_df.to_dict('records')
+        validation_results['block_metrics'] = block_metrics_df.to_dict('records')
+
         logger.info(f"Saved {len(validation_results['plots_saved'])} diagnostic plots to {plots_dir}")
+        
+        # Print comprehensive metrics summary
+        logger.info("\n" + "=" * 60)
+        logger.info("COMPREHENSIVE PERFORMANCE METRICS SUMMARY")
+        logger.info("=" * 60)
+        logger.info(f"  R² (Coefficient of Determination): {r2:.4f}")
+        logger.info(f"  Pearson Correlation:               {pearson_r:.4f}")
+        logger.info(f"  Spearman Correlation:              {spearman_r:.4f}")
+        logger.info(f"  MAE (Mean Absolute Error):         {mae:.2f}")
+        logger.info(f"  MedAE (Median Absolute Error):     {median_ae:.2f}")
+        logger.info(f"  RMSE (Root Mean Squared Error):    {rmse:.2f}")
+        logger.info(f"  MAPE (Mean Abs Percentage Error):  {mape:.1f}%")
+        logger.info(f"  WAPE (Weighted Abs Pct Error):     {wape:.4f}")
+        logger.info(f"  Bias (Mean Error):                 {bias:.2f}")
+        logger.info(f"  Max Error:                         {max_error:.2f}")
+        logger.info("=" * 60)
 
     # 5.6 Final Model Selection
     logger.info("\n" + "-" * 60)
@@ -2124,10 +2586,10 @@ def run_step5(step1_results: Dict, step3_results: Dict, step4_results: Dict = No
     validation_results['final_model_selection'] = final_selection
 
     logger.info("Final model selection:")
-    logger.info(".4f")
-    logger.info(".4f")
-    logger.info(".4f")
-    logger.info(f"Model type: {final_selection['model_type']}")
+    logger.info(f"  Primary metric (WAPE): {final_selection['primary_score']:.4f}")
+    logger.info(f"  MAE: {final_selection['secondary_metrics']['mae']:.4f}")
+    logger.info(f"  RMSE: {final_selection['secondary_metrics']['rmse']:.4f}")
+    logger.info(f"  Model type: {final_selection['model_type']}")
     logger.info(f"Stability (CV): {final_selection['stability_score']:.4f}")
     logger.info(f"Recommendation: {final_selection['recommendation']}")
 
