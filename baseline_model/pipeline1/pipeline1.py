@@ -76,6 +76,24 @@ except ImportError as e:
     logger.warning("Will skip external covariates")
     EXTERNAL_MODULES_AVAILABLE = False
 
+    def add_calendar_features(df, date_col="Date"):
+        df = df.copy()
+        dts = pd.to_datetime(df[date_col])
+        df["dow"] = dts.dt.dayofweek
+        df["month"] = dts.dt.month
+        df["day"] = dts.dt.day
+        df["doy"] = dts.dt.dayofyear
+        df["is_weekend"] = (df["dow"] >= 5).astype(int)
+        df["is_month_start"] = dts.dt.is_month_start.astype(int)
+        df["is_month_end"] = dts.dt.is_month_end.astype(int)
+        return df
+
+    def join_external_covariates(df, **kwargs):
+        return df
+
+    def load_sites_config():
+        return {}
+
 # Import machine learning libraries for Step 3
 try:
     import xgboost as xgb
@@ -114,22 +132,6 @@ try:
 except ImportError:
     logger.warning("sklearn tuning modules not available. Step 4 (tuning) will not be available")
     TUNING_MODULES_AVAILABLE = False
-    # Define dummy functions if imports fail
-    def add_calendar_features(df, date_col="Date"):
-        # Basic calendar features as fallback
-        df = df.copy()
-        dts = pd.to_datetime(df[date_col])
-        df["dow"] = dts.dt.dayofweek
-        df["month"] = dts.dt.month
-        df["day"] = dts.dt.day
-        df["is_weekend"] = (df["dow"] >= 5).astype(int)
-        return df
-
-    def join_external_covariates(df, **kwargs):
-        return df
-
-    def load_sites_config():
-        return {}
 
 
 def get_data_dir() -> Path:
