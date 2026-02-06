@@ -1,0 +1,23 @@
+section,metric,count,pct
+missing,Site,0,0.0
+missing,Date,0,0.0
+missing,Hour,0,0.0
+missing,REASON_VISIT_NAME,6205,0.53
+missing,ED Enc,0,0.0
+missing,ED Enc Admitted,0,0.0
+zeros,ED Enc,0,0.0
+zeros,ED Enc Admitted,843773,71.85
+zeros,Hour,33787,2.88
+reason,null,6205,0.53
+reason,blank_or_nan_str,0,0.0
+reason,known_placeholder_str,9204,0.78
+reason,total_any_placeholder,15409,1.31
+reason_placeholder_breakdown,OTHER,9204,0.78
+temporal,block_periods_with_zero_enc,0,0.0
+temporal,block_periods_with_zero_admitted,1307,2.92
+temporal,total_site_date_block_periods,44798,100.0
+consistency,ED Enc Admitted > ED Enc,0,
+consistency,ED Enc < 0,0,
+consistency,ED Enc Admitted < 0,0,
+consistency,"Site not in {A,B,C,D}",0,
+consistency,"Hour not in [0,23]",0,
