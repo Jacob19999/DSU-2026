@@ -239,24 +239,38 @@ These columns are now **populated and validated**. Available for all dates 2018�
    - **Note**: Holiday proximity features (`days_since_xmas`, `days_until_thanksgiving`, etc.) are derived in feature engineering, not here. But the raw holiday dates must be present in `events.yaml` for downstream derivation.
 
 ### Step 4: Weather Integration
-**Input:** NOAA CSVs (or API fetcher) — columns: `temp_min`, `temp_max`, `precip`, `snowfall`
+**Input:** Open-Meteo Historical Archive API (free, no key)
 1. **Map Sites** (per master strategy §6):
-   - **Site B** → Sioux Falls (**KFSD**) — confirmed match (Sanford USD Medical Center)
-   - **Site A, C** → Fargo (**KFAR**) — confirmed match (Sanford Medical Center Fargo)
-   - **Site D** → **Default KFAR, but test KFSD as ablation** — strategy notes "test which fits best"
-   - Store this mapping in `configs/data_config.yaml` so it's easy to swap per-site weather station.
-2. **Join**: Merge on `(Date)` + Mapped Location → `(Site, Date)`.
-3. **Handling Missing**: **LEAVE AS NaN.** Do not forward fill. (Pipelines will decide if they want to FFill, Linear Interp, or Climatology fill).
-4. **Snowfall**: NOAA stations KFSD/KFAR report snowfall. Include as a separate column — SD/ND winter storm events drive trauma and respiratory surges.
+   - **Site B** → Sioux Falls (43.5446°N, 96.7311°W)
+   - **Site A, C** → Fargo (46.8772°N, 96.7898°W)
+   - **Site D** → Default Fargo (test Sioux Falls as ablation)
+   - Mapping is in `SITE_WEATHER_MAP` dict in `external_data.py`.
+2. **Fetch**: Chunked by year, °F + inches, `America/Chicago` timezone.
+3. **Join**: Merge on `(site, date)` — each site gets its correct station's weather.
+4. **Handling Missing**: **LEAVE AS NaN.** (In practice, Open-Meteo returned 100% coverage for 2018–2025.)
+5. **Snowfall**: Converted from cm → inches. SD/ND winter storm events drive trauma and respiratory surges.
 
 ### Step 5: School Schedule Integration
-**Input:** Dictionary/Config
-1. **Source**: Use `schools.json` if available.
-2. **Fallback Heuristic** (if external data missing, per Pipeline A spec):
-   - **Start**: ~Aug 20-25 (Week 34)
-   - **End**: ~May 25-30 (Week 21)
-   - Mark `school_in_session = True` between Start and End, excluding `is_holiday` dates.
-3. Calculate `school_in_session` for each date.
+**Input:** Heuristic calendar (hardcoded in `external_data.py`)
+1. **Academic years** defined as `(start, end)` tuples for 2017–2026, including COVID adjustments (2019-20 early closure, 2020-21 late start).
+2. **Rules**:
+   - `school_in_session = True` on weekdays within academic year bounds.
+   - **Breaks carved out**: Winter (Dec 22–Jan 2), Spring (Mar 14–21), Thanksgiving (Wed–Sun).
+3. **Result**: 47.9% of dates = True (1,369 school days / 2,861 total).
+
+### Step 6: CDC ILI Rate Integration
+**Input:** CDC FluView ILINet API (primary) → CMU Delphi Epidata API (fallback)
+1. **Region**: HHS Region 8 (ND, SD, CO, MT, UT, WY).
+2. **Primary source**: `gis.cdc.gov/grasp/flu2/PostPhase02DataDownload` — returns weekly weighted ILI %.
+3. **Fallback**: If CDC returns HTTP error, automatically tries `api.delphi.cmu.edu/epidata/fluview/` (same data, better uptime).
+4. **Interpolation**: Weekly observations → daily via linear interpolation.
+5. **Result**: 423 weekly obs → 2,861 daily rows (99.8% non-NaN).
+
+### Step 7: AQI Integration
+**Input:** EPA annual `daily_aqi_by_county` ZIP archives
+1. **Counties**: Cass County ND (Sites A/C/D), Minnehaha County SD (Site B).
+2. **Join**: Merge on `(site, date)`.
+3. **Result**: 96.6% coverage (2018–2025).
 
 ---
 
@@ -333,26 +347,37 @@ Actual execution order inside `run_data_ingestion()`:
 
 ## 5. Output Data Files
 
-The pipeline will output the following files to: **`Pipelines/Data Source/Data/`**
+All outputs are written to: **`Pipelines/Data Source/Data/`**
 
 ### 5.1 Primary Data (Parquet)
-**`master_block_history.parquet`**
+**`master_block_history.parquet`** — **45,776 rows × 48 columns**
 - **Format**: Parquet (Snappy compression).
 - **Contents**: The Unified Raw Dataset described in Section 2.
-- **Columns**: ~35-40 (core 5 + ~20 reason counts + 13 calendar/temporal + 4-5 weather + 1 school + 2-3 event + optional external).
+- **Columns**: 48 total = 5 core + 21 reason counts + 11 calendar/temporal + 4 event + 4 weather + 1 school + 2 external (ILI + AQI).
 - **Usage**: Input for ALL forecasting pipelines (A, B, C, D, E).
 
 ### 5.2 Inspection Data (CSV)
-**`master_block_history.csv`**
-- **Format**: CSV (comma-separated).
-- **Contents**: Identical to Parquet version.
+**`master_block_history.csv`** — identical to Parquet version
+- **Format**: CSV (comma-separated), ~45K rows.
 - **Usage**: Human inspection, quick debugging, or for pipelines that prefer CSV.
-- **Ready for**:
-    - **Pipeline A**: Will derive lags/rolling/interactions/cyclical encodings, FFill weather, apply COVID sample weights.
-    - **Pipeline B**: Same as A, will create horizon-adaptive lag sets per bucket.
-    - **Pipeline C**: Will aggregate block→daily for daily model; use block shares for allocation.
-    - **Pipeline D**: Will generate Fourier terms from `day_of_year`, fit GLM on calendar + trend + `is_covid_era`.
-    - **Pipeline E**: Will compute `cmix_*_share` from `count_reason_*` columns, run PCA/NMF, build factor AR model with momentum.
+
+### 5.3 Reason Summary
+**`reason_category_summary.csv`**
+- **Contents**: Volume breakdown of all reason-of-visit categories (useful for verifying top-20 selection).
+
+### 5.4 API Cache Files (`cache/` subdirectory)
+| File | Contents | Re-fetch Trigger |
+|------|----------|-----------------|
+| `weather_cache.csv` | Open-Meteo daily weather (Fargo + Sioux Falls) | Delete file |
+| `aqi_cache.csv` | EPA daily AQI (Cass ND + Minnehaha SD) | Delete file |
+| `cdc_ili_cache.csv` | Daily interpolated ILI % (HHS Region 8) | Delete file |
+
+### 5.5 Downstream Pipeline Readiness
+- **Pipeline A**: Will derive lags/rolling/interactions/cyclical encodings, FFill weather, apply COVID sample weights.
+- **Pipeline B**: Same as A, will create horizon-adaptive lag sets per bucket.
+- **Pipeline C**: Will aggregate block→daily for daily model; use block shares for allocation.
+- **Pipeline D**: Will generate Fourier terms from `day_of_year`, fit GLM on calendar + trend + `is_covid_era`.
+- **Pipeline E**: Will compute `cmix_*_share` from `count_reason_*` columns, run PCA/NMF, build factor AR model with momentum.
 
 ## 6. Boundary: What This Step Does NOT Produce
 
