@@ -7,15 +7,18 @@
 
 ---
 
+
+***
+
 ## 1. Data Requirements by Pipeline
 
-| Pipeline | Key Data Dependencies | Source Component |
-|----------|----------------------|------------------|
-| **A (Global GBDT)** | Block-level `total_enc`, `admitted_enc`, Calendar (dow, month, day, week_of_year, quarter, day_of_year), Weather (temp, precip, snowfall), Events (is_holiday, event_name/type/count, is_halloween), School Calendar, `is_covid_era`, full history for lags/rolling | Master Time Series |
-| **B (Multi-Step)** | Same as A; needs full uninterrupted history for horizon-adaptive lag sets per bucket | Master Time Series |
-| **C (Hierarchical)** | Daily aggregates (sum block→daily), block-level shares, Calendar, Weather | Master Time Series (aggregated in pipeline) |
-| **D (GLM/GAM)** | `total_enc`, `admitted_enc`, DOW, `day_of_year` (for Fourier term generation), `is_holiday`, Holiday proximity (derivable from events), trend (`days_since_epoch` derived from `date`), `is_covid_era` | Master Time Series |
-| **E (Reason-Mix)** | Reason-of-visit counts (`count_reason_*`) for share/factor computation, Calendar, full history for factor AR/momentum lags | Case Mix Aggregates + Master Time Series |
+| Pipeline | Key Data Dependencies | Source Component | Notes |
+|----------|----------------------|------------------|-------|
+| **A (Global GBDT)** | Block-level `total_enc`, `admitted_enc`, Calendar (dow, month, day, week_of_year, quarter, day_of_year), Weather (temp, precip, snowfall), Events (is_holiday, event_name/type/count, is_halloween), School Calendar, `is_covid_era`, full history for lags/rolling | Master Time Series | Needs `event_count` for interaction features. Uses `is_halloween`. |
+| **B (Multi-Step)** | Same as A; needs full uninterrupted history for horizon-adaptive lag sets per bucket | Master Time Series | Uses `is_covid_era` for downweighting. |
+| **C (Hierarchical)** | Daily aggregates (sum block→daily), block-level shares, Calendar, Weather | Master Time Series (aggregated in pipeline) | Uses `school_in_session` for share modeling. |
+| **D (GLM/GAM)** | `total_enc`, `admitted_enc`, DOW, `day_of_year` (for Fourier term generation), `is_holiday`, Holiday proximity (derivable from events), trend (`days_since_epoch` derived from `date`), `is_covid_era` | Master Time Series | Needs valid `is_holiday` dates for proximity derivation. |
+| **E (Reason-Mix)** | Reason-of-visit counts (`count_reason_*`) for share/factor computation, Calendar, full history for factor AR/momentum lags | Case Mix Aggregates + Master Time Series | Requires ~20 top reason categories + "other" bucket. |
 
 **Cross-Cutting (ALL Pipelines):** `is_covid_era` flag (Mar 2020 – Jun 2021), COVID sample-weight policy (derived from `total_enc` in feature engineering, not stored here).
 
@@ -41,8 +44,10 @@ Instead of pre-calculating shares (which might require imputation), we store **R
 
 | Column | Type | Description | Source | Note |
 |--------|------|-------------|--------|------|
-| `count_reason_{cat}` | Int | Count of visits for top K reason categories | Aggregated from `visits.csv` | For Pipeline E |
-| `count_reason_other` | Int | Count of all other reasons | Aggregated from `visits.csv` | For Pipeline E |
+| `count_reason_{cat}` | Int | Count of visits for top K reason categories | Aggregated from `visits.csv` | For Pipeline E (Target K=20) |
+| `count_reason_other` | Int | Count of all other reasons (tail) | Aggregated from `visits.csv` | For Pipeline E |
+
+**Implementation Note**: Identify top 20 categories by total historical volume across all sites. All other categories sum to `count_reason_other`.
 
 ### 2.3 Temporal & Calendar Features
 Raw calendar data is deterministic and does not require imputation.
@@ -146,8 +151,12 @@ These are referenced in the master strategy §6 as optional enrichments. They mu
 
 ### Step 5: School Schedule Integration
 **Input:** Dictionary/Config
-1. Define school start/end logic for Sioux Falls/Fargo.
-2. Calculate `school_in_session` for each date.
+1. **Source**: Use `schools.json` if available.
+2. **Fallback Heuristic** (if external data missing, per Pipeline A spec):
+   - **Start**: ~Aug 20-25 (Week 34)
+   - **End**: ~May 25-30 (Week 21)
+   - Mark `school_in_session = True` between Start and End, excluding `is_holiday` dates.
+3. Calculate `school_in_session` for each date.
 
 ---
 
