@@ -16,7 +16,9 @@ PIPELINE_DIR = Path(__file__).resolve().parent               # Pipelines/Pipelin
 
 DATA_SOURCE_DIR = PROJECT_ROOT / "Pipelines" / "Data Source" / "Data"
 MASTER_PARQUET = DATA_SOURCE_DIR / "master_block_history.parquet"
-RAW_VISITS_CSV = DATA_SOURCE_DIR / "DSU-Dataset.csv"
+_DATA_SOURCE_CSV = DATA_SOURCE_DIR / "DSU-Dataset.csv"
+_DATASET_CSV = PROJECT_ROOT / "Dataset" / "DSU-Dataset.csv"
+RAW_VISITS_CSV = _DATA_SOURCE_CSV if _DATA_SOURCE_CSV.exists() else _DATASET_CSV
 
 OUTPUT_DIR = PIPELINE_DIR / "output"
 MODEL_DIR = PIPELINE_DIR / "models"

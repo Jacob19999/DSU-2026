@@ -1,0 +1,11 @@
+{
+  "n_pipelines": 2,
+  "wapes": {
+    "A": 0.2848724304189383,
+    "D": 0.39242299960314897
+  },
+  "mean_wape": 0.3386477150110436,
+  "std_wape": 0.053775284592105344,
+  "cv": 0.15879417521051833,
+  "interpretation": "DIVERGENT -- pipelines capture different signals. Strong ensemble gains expected."
+}

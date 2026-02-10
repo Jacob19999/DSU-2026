@@ -151,6 +151,22 @@ def _add_weather_features(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def _add_external_enrichment(df: pd.DataFrame) -> pd.DataFrame:
+    """Impute CDC ILI rate and AQI NaNs (ffill → monthly climatology), or exclude."""
+    for col in ["cdc_ili_rate", "aqi"]:
+        if col not in df.columns:
+            continue
+        # Forward-fill within each site (temporal continuity)
+        df[col] = df.groupby("site")[col].ffill()
+        # Back-fill any leading NaNs
+        df[col] = df.groupby("site")[col].bfill()
+        # Final fallback: monthly climatology per site
+        if df[col].isna().any():
+            clim = df.groupby(["site", "month"])[col].transform("mean")
+            df[col] = df[col].fillna(clim)
+    return df
+
+
 def _add_case_mix_shares(df: pd.DataFrame) -> pd.DataFrame:
     """Reason-of-visit shares (top N), lagged by MAX_HORIZON per (site, block)."""
     reason_cols = sorted([c for c in df.columns if c.startswith("count_reason_") and c != "count_reason_other"])
@@ -185,12 +201,22 @@ def _add_interaction_features(df: pd.DataFrame) -> pd.DataFrame:
     is_we = df["is_weekend"].astype(int) if "is_weekend" in df.columns else 0
     df["holiday_x_block"] = is_hol * df["block"]
     df["weekend_x_block"] = is_we * df["block"]
+
+    # Site × DOW and Site × Month categorical interactions (from implementation plan §2J)
+    if "site_enc" in df.columns and "dow" in df.columns:
+        df["site_x_dow"] = df["site_enc"] * 7 + df["dow"]
+    if "site_enc" in df.columns and "month" in df.columns:
+        df["site_x_month"] = df["site_enc"] * 12 + (df["month"] - 1)
     return df
 
 
 def _add_sample_weights(df: pd.DataFrame) -> pd.DataFrame:
     """COVID downweighting + volume-based sample weights for A1 & A2."""
-    df["covid_weight"] = np.where(df["is_covid_era"], cfg.COVID_SAMPLE_WEIGHT, 1.0)
+    if "is_covid_era" in df.columns:
+        df["covid_weight"] = np.where(df["is_covid_era"], cfg.COVID_SAMPLE_WEIGHT, 1.0)
+    else:
+        print("  WARNING: 'is_covid_era' column missing — defaulting COVID weight to 1.0")
+        df["covid_weight"] = 1.0
     df["volume_weight"] = df["total_enc"].clip(lower=1)
     df["sample_weight_a1"] = df["covid_weight"] * df["volume_weight"]
     df["sample_weight_a2"] = df["covid_weight"] * df["admitted_enc"].clip(lower=1)
@@ -238,17 +264,22 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     print("  [2g] Weather features ...")
     df = _add_weather_features(df)
 
+    print("  [2g2] External enrichment (CDC ILI, AQI) ...")
+    df = _add_external_enrichment(df)
+
     print("  [2h] Case-mix shares ...")
     df = _add_case_mix_shares(df)
 
-    print("  [2i] Interaction features ...")
+    print("  [2i] Site encoding ...")
+    df = _encode_site(df)
+
+    print("  [2j] Interaction features ...")
     df = _add_interaction_features(df)
 
-    print("  [2j] Sample weights ...")
+    print("  [2k] Sample weights ...")
     df = _add_sample_weights(df)
 
-    print("  [2k] Site encoding + bool cast ...")
-    df = _encode_site(df)
+    print("  [2l] Bool cast ...")
     df = _cast_bools(df)
 
     n_feat = len(get_feature_columns(df))
@@ -299,6 +330,11 @@ def get_feature_columns(df: pd.DataFrame) -> list[str]:
         c for c in df.columns
         if c.startswith("share_reason_") and not c.endswith("_lag63")
     )
+    # Safety: exclude any non-numeric columns (object, datetime, timedelta)
+    non_numeric = set(
+        df.select_dtypes(include=["object", "datetime64", "datetimetz", "timedelta64"]).columns
+    )
+    exclude.update(non_numeric)
     return sorted(c for c in df.columns if c not in exclude)
 
 

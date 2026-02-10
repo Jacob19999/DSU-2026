@@ -56,7 +56,7 @@ def generate_final_forecast(
 
     df_fold = compute_fold_aggregate_encodings(df, train_mask)
     feature_cols = get_feature_columns(df_fold)
-    cat_features = ["site_enc", "block"]
+    cat_features = ["site_enc", "block", "site_x_dow", "site_x_month"]
 
     # Split training into fit + early-stopping hold-out
     train_fit = df_fold.loc[train_mask & (df["date"] < es_start)].copy()

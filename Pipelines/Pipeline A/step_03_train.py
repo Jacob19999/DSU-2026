@@ -29,7 +29,12 @@ def wape(y_true: np.ndarray, y_pred: np.ndarray) -> float:
 
 
 def largest_remainder_round(values: np.ndarray) -> np.ndarray:
-    """Round float array to integers while preserving the aggregate sum."""
+    """Round float array to integers while preserving the aggregate sum.
+
+    Handles the edge case where clipping negatives to 0 would break
+    the sum-preservation guarantee by redistributing the deficit.
+    """
+    values = np.maximum(values, 0.0)  # clip inputs first
     floored = np.floor(values).astype(int)
     remainders = values - floored
     target_sum = int(round(values.sum()))
@@ -38,9 +43,12 @@ def largest_remainder_round(values: np.ndarray) -> np.ndarray:
         idx = np.argsort(-remainders)[:deficit]
         floored[idx] += 1
     elif deficit < 0:
-        idx = np.argsort(remainders)[:(-deficit)]
-        floored[idx] -= 1
-    return np.maximum(floored, 0)
+        # Only decrement items that are > 0 to avoid negatives
+        candidates = np.where(floored > 0)[0]
+        order = candidates[np.argsort(remainders[candidates])]
+        for i in order[:(-deficit)]:
+            floored[i] -= 1
+    return floored
 
 
 # ── Single-fold training ────────────────────────────────────────────────────
@@ -76,7 +84,7 @@ def train_fold(
 
     df_fold = compute_fold_aggregate_encodings(df, train_mask)
     feature_cols = get_feature_columns(df_fold)
-    cat_features = ["site_enc", "block"]
+    cat_features = ["site_enc", "block", "site_x_dow", "site_x_month"]
 
     train_data = df_fold.loc[train_mask].copy()
     val_data = df_fold.loc[val_mask].copy()
