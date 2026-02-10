@@ -56,7 +56,7 @@ def main() -> None:
     t0 = time.time()
 
     print("=" * 68)
-    print(" PIPELINE D: GLM/GAM WITH FOURIER — Starting")
+    print(" PIPELINE D: GLM/GAM WITH FOURIER - Starting")
     print("=" * 68)
     cfg.print_config_summary()
 

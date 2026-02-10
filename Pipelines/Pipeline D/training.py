@@ -137,7 +137,7 @@ def train_all_models(
             series = get_site_block_subset(train_df, site, block)
             if len(series) == 0:
                 if verbose:
-                    print(f"  [{site}, Block {block}] SKIPPED — no training data")
+                    print(f"  [{site}, Block {block}] SKIPPED - no training data")
                 continue
 
             # Build design matrix
@@ -155,7 +155,7 @@ def train_all_models(
 
             if len(X_c) < 50:
                 if verbose:
-                    print(f"  [{site}, Block {block}] SKIPPED — only {len(X_c)} valid rows")
+                    print(f"  [{site}, Block {block}] SKIPPED - only {len(X_c)} valid rows")
                 continue
 
             # Train total_enc (Poisson)
@@ -175,9 +175,11 @@ def train_all_models(
                 pred_total = np.exp(eta)
                 mean_actual = y_total_c.mean()
                 mean_pred   = pred_total.mean()
-                print(f"  [{site}, Block {block}] n={len(X_c):,}  "
-                      f"mean(y)={mean_actual:.1f}  mean(ŷ)={mean_pred:.1f}  "
-                      f"n_params={len(total_model.params)}")
+                print(
+                    f"  [{site}, Block {block}] n={len(X_c):,}  "
+                    f"mean(y)={mean_actual:.1f}  mean(y_hat)={mean_pred:.1f}  "
+                    f"n_params={len(total_model.params)}"
+                )
 
     return models
 

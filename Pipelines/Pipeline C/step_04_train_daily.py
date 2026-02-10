@@ -58,9 +58,10 @@ def train_daily_fold(
     train_data = df_fold.loc[train_mask].copy()
     val_data = df_fold.loc[val_mask].copy()
 
-    # COVID policy
+    # COVID policy: filter out COVID-era rows (ensure boolean mask)
     if covid_policy == "exclude":
-        train_data = train_data[~train_data["is_covid_era"]].copy()
+        mask_non_covid = ~train_data["is_covid_era"].astype(bool)
+        train_data = train_data[mask_non_covid].copy()
 
     # Drop burn-in rows (longest lag NaN)
     longest_lag = f"lag_{cfg.LAG_DAYS_DAILY[-1]}"

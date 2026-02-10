@@ -91,7 +91,10 @@ def train_fold(
 
     # COVID policy
     if covid_policy == "exclude":
-        train_data = train_data[~train_data["is_covid_era"]].copy()
+        # Note: ``is_covid_era`` is stored as 0/1 ints after bool casting.
+        # Use an explicit equality check instead of bitwise negation to
+        # avoid pandas treating the mask as an indexer of column labels.
+        train_data = train_data[train_data["is_covid_era"] == 0].copy()
 
     # Drop rows where longest lag is NaN (burn-in period)
     train_data = train_data.dropna(subset=[f"lag_{cfg.LAG_DAYS[-1]}"])

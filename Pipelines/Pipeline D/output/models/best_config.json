@@ -1,0 +1,22 @@
+{
+  "weekly_order": 5,
+  "annual_order": 3,
+  "alpha": 0.05,
+  "mean_admitted_wape": 0.3844966626770906,
+  "fold_wapes": [
+    0.3833361127744389,
+    0.38591365152343826,
+    0.3882565885200063,
+    0.38048029789047877
+  ],
+  "fourier_config": [
+    {
+      "period": 7,
+      "order": 5
+    },
+    {
+      "period": 365.25,
+      "order": 3
+    }
+  ]
+}

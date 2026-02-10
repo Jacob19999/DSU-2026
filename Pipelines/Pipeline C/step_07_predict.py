@@ -161,7 +161,8 @@ def predict_fold(
 
     cfg.ensure_dirs()
     submission.to_csv(cfg.OUTPUT_DIR / f"fold_{fold_id}_predictions.csv", index=False)
-    print(f"    Fold {fold_id}: saved {len(submission)} rows → output/fold_{fold_id}_predictions.csv")
+    # Avoid non-ASCII arrows for Windows consoles (cp1252-safe)
+    print(f"    Fold {fold_id}: saved {len(submission)} rows -> output/fold_{fold_id}_predictions.csv")
 
     return submission
 
@@ -191,7 +192,8 @@ def predict_all_folds(
     # Combine OOF
     oof = pd.concat(all_subs, ignore_index=True)
     oof.to_csv(cfg.OUTPUT_DIR / "oof_predictions.csv", index=False)
-    print(f"\n  OOF predictions: {len(oof)} rows → output/oof_predictions.csv")
+    # ASCII-only arrow for Windows consoles
+    print(f"\n  OOF predictions: {len(oof)} rows -> output/oof_predictions.csv")
 
     return all_subs
 

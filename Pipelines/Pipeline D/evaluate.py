@@ -56,7 +56,7 @@ def _build_truth() -> pd.DataFrame:
 def _score_fold(truth: pd.DataFrame, fold: dict) -> dict | None:
     csv_path = cfg.PRED_DIR / f"fold_{fold['id']}_predictions.csv"
     if not csv_path.exists():
-        print(f"  WARNING: {csv_path} not found — skipping fold {fold['id']}")
+        print(f"  WARNING: {csv_path} not found - skipping fold {fold['id']}")
         return None
 
     pred = pd.read_csv(csv_path)
@@ -123,7 +123,7 @@ def evaluate() -> dict:
     # ── Report ───────────────────────────────────────────────────────────
     sep = "=" * 68
     print(f"\n{sep}")
-    print(" PIPELINE D: GLM/GAM WITH FOURIER — EVALUATION REPORT")
+    print(" PIPELINE D: GLM/GAM WITH FOURIER - EVALUATION REPORT")
     print(sep)
 
     print(f"\n OVERALL ({len(fold_results)}-fold mean):")
@@ -178,7 +178,7 @@ def evaluate() -> dict:
         if mean_aw > 0 else 0
     )
     if fold_var > 0.3:
-        print(f"\n  WARNING: fold CV/mean = {fold_var:.2f} > 0.3 — temporal drift likely")
+        print(f"\n  WARNING: fold CV/mean = {fold_var:.2f} > 0.3 - temporal drift likely")
 
     print(sep)
 

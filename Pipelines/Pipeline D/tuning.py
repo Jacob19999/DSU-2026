@@ -125,7 +125,7 @@ def tune_pipeline_d(
                 except Exception as e:
                     fold1_wape = float("inf")
                     if verbose:
-                        print(f"    ERROR: w={w_order} a={a_order} α={alpha}: {e}")
+                        print(f"    ERROR: w={w_order} a={a_order} alpha={alpha}: {e}")
 
                 results.append({
                     "weekly_order": w_order,
@@ -175,9 +175,11 @@ def tune_pipeline_d(
         mean_wape = float(np.mean(fold_wapes))
 
         if verbose:
-            print(f"    w={r['weekly_order']} a={r['annual_order']} α={r['alpha']:.3f}  "
-                  f"-> folds=[{', '.join(f'{w:.4f}' for w in fold_wapes)}]  "
-                  f"mean={mean_wape:.4f}")
+            print(
+                f"    w={r['weekly_order']} a={r['annual_order']} alpha={r['alpha']:.3f}  "
+                f"-> folds=[{', '.join(f'{w:.4f}' for w in fold_wapes)}]  "
+                f"mean={mean_wape:.4f}"
+            )
 
         if mean_wape < best_wape:
             best_wape = mean_wape
@@ -229,8 +231,10 @@ def load_best_config() -> dict | None:
             {"period": 7,      "order": config["weekly_order"]},
             {"period": 365.25, "order": config["annual_order"]},
         ]
-    print(f"  Loaded tuned config: w={config['weekly_order']} "
-          f"a={config['annual_order']} α={config['alpha']}")
+    print(
+        f"  Loaded tuned config: w={config['weekly_order']} "
+        f"a={config['annual_order']} alpha={config['alpha']}"
+    )
     return config
 
 

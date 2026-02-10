@@ -99,7 +99,7 @@ def fold_model_dir(fold_id: int) -> Path:
 
 def print_config_summary() -> None:
     """Print configuration for manual review."""
-    print("Pipeline D: GLM/GAM with Fourier Seasonality — Config Summary")
+    print("Pipeline D: GLM/GAM with Fourier Seasonality - Config Summary")
     print(f"  Master data  : {MASTER_PARQUET}")
     print(f"  Fourier terms:")
     for ft in FOURIER_TERMS:
