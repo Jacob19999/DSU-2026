@@ -56,11 +56,21 @@ def main() -> None:
         action="store_true",
         help="Skip writing reason_category_summary.csv.",
     )
+    parser.add_argument(
+        "--no-fetch",
+        action="store_true",
+        help="Skip network API calls for external data (weather, CDC ILI, AQI). "
+        "Deterministic features (events, school calendar) are always generated. "
+        "Cached API data is still loaded if available.",
+    )
 
     args = parser.parse_args()
     _setup_logging()
 
-    config = DataSourceConfig(top_n_reasons=args.top_n_reasons)
+    config = DataSourceConfig(
+        top_n_reasons=args.top_n_reasons,
+        fetch_apis=not args.no_fetch,
+    )
     logging.getLogger(__name__).info("Using config: %s", config)
 
     df = run_data_ingestion(

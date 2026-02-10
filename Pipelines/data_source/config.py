@@ -23,6 +23,9 @@ RAW_VISITS = DATA_DIR / "DSU-Dataset.csv"
 MASTER_PARQUET = DATA_DIR / "master_block_history.parquet"
 MASTER_CSV = DATA_DIR / "master_block_history.csv"
 
+# Cache directory for API-fetched external data (weather, CDC ILI, AQI)
+EXTERNAL_CACHE_DIR = DATA_DIR / "cache"
+
 
 # ── Grid Definition ────────────────────────────────────────────────────────────
 
@@ -60,5 +63,7 @@ class DataSourceConfig:
     grid_start: str = GRID_START
     grid_end: str = GRID_END
     top_n_reasons: int = TOP_N_REASONS
+    external_cache_dir: Path = EXTERNAL_CACHE_DIR
+    fetch_apis: bool = True   # set False to skip network calls (weather/CDC/AQI)
 
 

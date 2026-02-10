@@ -8,7 +8,7 @@ CSV in `Pipelines/Data Source/Data/DSU-Dataset.csv`.
 
 from __future__ import annotations
 
-from . import config, ingestion  # re-export for convenience
+from . import config, external_data, ingestion  # re-export for convenience
 
-__all__ = ["config", "ingestion"]
+__all__ = ["config", "external_data", "ingestion"]
 

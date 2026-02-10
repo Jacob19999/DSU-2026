@@ -36,6 +36,7 @@ from .config import (
     EPOCH_START,
     SITES,
 )
+from .external_data import add_external_features
 
 
 logger = logging.getLogger(__name__)
@@ -118,8 +119,15 @@ def run_data_ingestion(
     # 5. Deterministic calendar and COVID/halloween flags
     master = add_calendar_features(master)
 
-    # 6. Stub external data (events, weather, school, optional enrichments)
-    master = add_stub_external_features(master)
+    # 6. External data (events, weather, school calendar, CDC ILI, AQI)
+    master = add_external_features(
+        df=master,
+        sites=list(SITES),
+        start_date=config.grid_start,
+        end_date=config.grid_end,
+        cache_dir=config.external_cache_dir,
+        fetch_apis=config.fetch_apis,
+    )
 
     # Final sort for downstream lag/rolling ops
     master = master.sort_values(["site", "block", "date"]).reset_index(drop=True)
@@ -395,13 +403,10 @@ def add_calendar_features(df: pd.DataFrame) -> pd.DataFrame:
 
 def add_stub_external_features(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Add placeholder columns for events, weather, school, and optional externals.
+    DEPRECATED — replaced by ``external_data.add_external_features()``.
 
-    The current project only ships a visit-level CSV. To keep this layer
-    self-contained and avoid silent leakage, we:
-      - expose the columns expected by downstream pipelines
-      - leave them as NaN/False/0 so each pipeline can choose an imputation
-        strategy or ignore them entirely.
+    Retained as fallback reference.  The real implementation fetches data
+    from US-holidays, Open-Meteo, CDC FluView, and EPA AQI sources.
     """
     df = df.copy()
 

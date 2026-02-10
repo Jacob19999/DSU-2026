@@ -1,0 +1,868 @@
+reason_visit_name,total_ed_enc,rank,is_top_n,slug
+ABDOMINAL PAIN,123575,1,True,abdominal_pain
+CHEST PAIN,82502,2,True,chest_pain
+FALL,52970,3,True,fall
+SHORTNESS OF BREATH,48018,4,True,shortness_of_breath
+BACK PAIN,35338,5,True,back_pain
+FEVER,33417,6,True,fever
+HEADACHE,31083,7,True,headache
+VOMITING,30193,8,True,vomiting
+BREATHING PROBLEM,29675,9,True,breathing_problem
+COUGH,22875,10,True,cough
+DIZZINESS,22625,11,True,dizziness
+WEAKNESS,21548,12,True,weakness
+FLANK PAIN,20480,13,True,flank_pain
+LEG PAIN,17614,14,True,leg_pain
+LACERATION,15496,15,True,laceration
+FLU-LIKE SYMPTOMS,15277,16,True,flu_like_symptoms
+ALCOHOL INTOXICATION,14950,17,True,alcohol_intoxication
+EVALUATION,13110,18,True,evaluation
+SEIZURES,13071,19,True,seizures
+MOTOR VEHICLE CRASH,12821,20,True,motor_vehicle_crash
+PALPITATIONS,11844,21,False,palpitations
+SYNCOPE,11396,22,False,syncope
+SUICIDAL,11382,23,False,suicidal
+CLOSED HEAD INJURY,11084,24,False,closed_head_injury
+ALTERED MENTAL STATUS,10586,25,False,altered_mental_status
+SORE THROAT,10414,26,False,sore_throat
+NAUSEA,9988,27,False,nausea
+OTHER,9762,28,False,other
+TRAUMA,9592,29,False,trauma
+DERM PROBLEM,9398,30,False,derm_problem
+VAGINAL BLEEDING,9160,31,False,vaginal_bleeding
+DENTAL PAIN,8982,32,False,dental_pain
+EYE PROBLEM,8740,33,False,eye_problem
+HYPERTENSION,8716,34,False,hypertension
+KNEE PAIN,8641,35,False,knee_pain
+ARM PAIN,7674,36,False,arm_pain
+FOOT PAIN,7135,37,False,foot_pain
+ALLERGIC REACTION,7045,38,False,allergic_reaction
+ANXIETY,7043,39,False,anxiety
+NUMBNESS,7023,40,False,numbness
+ABNORMAL LABS,6945,41,False,abnormal_labs
+FINGER INJURY,6854,42,False,finger_injury
+DIARRHEA,6783,43,False,diarrhea
+LEG SWELLING,6642,44,False,leg_swelling
+ASSAULT VICTIM,6512,45,False,assault_victim
+NECK PAIN,6491,46,False,neck_pain
+DRUG OVERDOSE,6311,47,False,drug_overdose
+ANKLE INJURY,6242,48,False,ankle_injury
+WITHDRAWAL,6158,49,False,withdrawal
+SHOULDER PAIN,6047,50,False,shoulder_pain
+HIP PAIN,6024,51,False,hip_pain
+WOUND CHECK,5828,52,False,wound_check
+CONFUSION,5641,53,False,confusion
+ARM INJURY,5317,54,False,arm_injury
+EPISTAXIS,5128,55,False,epistaxis
+EAR PAIN,5117,56,False,ear_pain
+HAND INJURY,4786,57,False,hand_injury
+CONSTIPATION,4705,58,False,constipation
+FATIGUE,4552,59,False,fatigue
+URINARY RETENTION,4482,60,False,urinary_retention
+RASH,4414,61,False,rash
+MELENA,4374,62,False,melena
+RIB PAIN,4347,63,False,rib_pain
+ALCOHOL PROBLEM,4268,64,False,alcohol_problem
+GENERALIZED BODY ACHES,4055,65,False,generalized_body_aches
+EXTREMITY LACERATION,3859,66,False,extremity_laceration
+UTI,3697,67,False,uti
+POST OP PAIN,3679,68,False,post_op_pain
+SURGICAL FOLLOWUP,3629,69,False,surgical_followup
+ANKLE PAIN,3573,70,False,ankle_pain
+SLURRED SPEECH,3487,71,False,slurred_speech
+FOOT INJURY,3486,72,False,foot_injury
+SWELLING,3482,73,False,swelling
+WRIST INJURY,3429,74,False,wrist_injury
+MEDICATION REQUEST,3419,75,False,medication_request
+SHOULDER INJURY,3407,76,False,shoulder_injury
+DENTAL PROBLEM,3383,77,False,dental_problem
+HEAD LACERATION,3238,78,False,head_laceration
+HYPOTENSION,3227,79,False,hypotension
+KNEE INJURY,3137,80,False,knee_injury
+HYPERGLYCEMIA,3041,81,False,hyperglycemia
+BLOOD IN STOOL,3033,82,False,blood_in_stool
+NEAR SYNCOPE,3018,83,False,near_syncope
+HAND PAIN,2970,84,False,hand_pain
+JAIL CLEARANCE,2967,85,False,jail_clearance
+LEG INJURY,2906,86,False,leg_injury
+COVID 19 EXPOSURE,2864,87,False,covid_19_exposure
+ABSCESS,2648,88,False,abscess
+CATHETER,2639,89,False,catheter
+TOE PAIN,2620,90,False,toe_pain
+FEEDING TUBE COMPLICATION,2608,91,False,feeding_tube_complication
+PELVIC PAIN,2606,92,False,pelvic_pain
+HEMATURIA,2600,93,False,hematuria
+HEMATEMESIS,2573,94,False,hematemesis
+DEHYDRATION,2506,95,False,dehydration
+ANIMAL BITE,2501,96,False,animal_bite
+DRUG PROBLEM,2471,97,False,drug_problem
+EXTREMITY WEAKNESS,2445,98,False,extremity_weakness
+EYE PAIN,2265,99,False,eye_pain
+DOG BITE,2209,100,False,dog_bite
+WOUND INFECTION,2189,101,False,wound_infection
+FUSSY,2180,102,False,fussy
+FOREIGN BODY SWALLOWED,2127,103,False,foreign_body_swallowed
+IRREGULAR HEART BEAT,2049,104,False,irregular_heart_beat
+TACHYCARDIA,2018,105,False,tachycardia
+EAR ACHE,2018,106,False,ear_ache
+UNRESPONSIVE,2015,107,False,unresponsive
+RESPIRATORY DISTRESS,1989,108,False,respiratory_distress
+HIGH BLOOD SUGAR,1979,109,False,high_blood_sugar
+HALLUCINATIONS,1941,110,False,hallucinations
+WRIST PAIN,1932,111,False,wrist_pain
+GROIN PAIN,1842,112,False,groin_pain
+FINGER PAIN,1830,113,False,finger_pain
+BURN,1830,114,False,burn
+TESTICULAR PAIN,1826,115,False,testicular_pain
+RECTAL PROBLEM,1812,116,False,rectal_problem
+SUTURE/ STAPLE REMOVAL,1782,117,False,suture_staple_removal
+MEDICATION REACTION,1776,118,False,medication_reaction
+CARDIAC ARREST,1765,119,False,cardiac_arrest
+FACIAL LACERATION,1752,120,False,facial_laceration
+FACIAL DROOP,1751,121,False,facial_droop
+FOOD BOLUS,1718,122,False,food_bolus
+CELLULITIS,1714,123,False,cellulitis
+ASTHMA,1707,124,False,asthma
+THREATENED MISCARRIAGE,1654,125,False,threatened_miscarriage
+JAW PAIN,1647,126,False,jaw_pain
+HYPOGLYCEMIA,1637,127,False,hypoglycemia
+BLOOD IN URINE,1625,128,False,blood_in_urine
+INGESTION,1596,129,False,ingestion
+PENIS/SCROTUM PROBLEM,1572,130,False,penis_scrotum_problem
+URINARY BURNING,1538,131,False,urinary_burning
+INSECT BITE,1470,132,False,insect_bite
+MEDICAL CLEARANCE,1465,133,False,medical_clearance
+FACIAL SWELLING,1464,134,False,facial_swelling
+NEUROLOGICAL CHANGES,1407,135,False,neurological_changes
+URI,1384,136,False,uri
+COVID 19 INFORMATION,1351,137,False,covid_19_information
+NASAL CONGESTION,1341,138,False,nasal_congestion
+EYE INJURY,1339,139,False,eye_injury
+CHILLS,1334,140,False,chills
+ATRIAL FIBRILLATION,1323,141,False,atrial_fibrillation
+HEMOPTYSIS,1311,142,False,hemoptysis
+EVALUATION OF SEXUAL ASSAULT,1232,143,False,evaluation_of_sexual_assault
+BLOOD PRESSURE,1232,144,False,blood_pressure
+DEPRESSION,1232,145,False,depression
+FACIAL PAIN,1220,146,False,facial_pain
+TESTICLE PROBLEM,1218,147,False,testicle_problem
+DYSURIA,1214,148,False,dysuria
+FOOT SWELLING,1200,149,False,foot_swelling
+SHAKING,1189,150,False,shaking
+FACIAL INJURY,1172,151,False,facial_injury
+PSYCHIATRIC PROBLEM,1164,152,False,psychiatric_problem
+HIVES,1150,153,False,hives
+SUICIDE ATTEMPT,1148,154,False,suicide_attempt
+EAR PROBLEM,1143,155,False,ear_problem
+HIP INJURY,1131,156,False,hip_injury
+ABDOMINAL DISTENTION,1115,157,False,abdominal_distention
+BLOOD SUGAR PROBLEMS,1111,158,False,blood_sugar_problems
+URINARY PAIN,1091,159,False,urinary_pain
+NEUROLOGIC PROBLEM,1058,160,False,neurologic_problem
+ELBOW INJURY,1036,161,False,elbow_injury
+MENTAL HEALTH VISIT,1033,162,False,mental_health_visit
+BRADYCARDIA,1028,163,False,bradycardia
+FOREIGN BODY IN EYE,989,164,False,foreign_body_in_eye
+MOUTH/LIP PROBLEM,985,165,False,mouth_lip_problem
+URINARY FREQUENCY,979,166,False,urinary_frequency
+FOREIGN BODY IN SKIN,974,167,False,foreign_body_in_skin
+ATV ACCIDENT,973,168,False,atv_accident
+RECTAL BLEEDING,966,169,False,rectal_bleeding
+NOSE BLEED,960,170,False,nose_bleed
+ELBOW PAIN,953,171,False,elbow_pain
+VOMITING DURING PREGNANCY,938,172,False,vomiting_during_pregnancy
+BLEEDING/BRUISING,919,173,False,bleeding_bruising
+VIRAL SYNDROME,919,174,False,viral_syndrome
+TINGLING,913,175,False,tingling
+BICYCLE ACCIDENT,852,176,False,bicycle_accident
+LIP LACERATION,850,177,False,lip_laceration
+MASS,848,178,False,mass
+PANIC ATTACK,820,179,False,panic_attack
+KIDNEY PROBLEM,804,180,False,kidney_problem
+CROUP,800,181,False,croup
+GI BLEEDING,795,182,False,gi_bleeding
+AGGRESSIVE BEHAVIOR,792,183,False,aggressive_behavior
+CYST,775,184,False,cyst
+SPASMS,768,185,False,spasms
+THROAT PROBLEM,765,186,False,throat_problem
+EMESIS,764,187,False,emesis
+EXPOSURE TO STD,759,188,False,exposure_to_std
+OUTPATIENT DIALYSIS FOLLOW-UP,750,189,False,outpatient_dialysis_follow_up
+APHASIA,749,190,False,aphasia
+MOUTH PAIN,722,191,False,mouth_pain
+VAGINAL PROBLEM,715,192,False,vaginal_problem
+MOTORCYCLE CRASH,693,193,False,motorcycle_crash
+SINUS PROBLEM,673,194,False,sinus_problem
+LOSS OF VISION,667,195,False,loss_of_vision
+WHEEZING,667,196,False,wheezing
+BACK INJURY,663,197,False,back_injury
+SA,660,198,False,sa
+HEMORRHOIDS,660,199,False,hemorrhoids
+SICKLE CELL CRISIS,647,200,False,sickle_cell_crisis
+MOUTH INJURY,646,201,False,mouth_injury
+STD,641,202,False,std
+VAGINAL PAIN,633,203,False,vaginal_pain
+BREAST PAIN,631,204,False,breast_pain
+ANEMIA,628,205,False,anemia
+FOREIGN BODY IN NOSE,628,206,False,foreign_body_in_nose
+FEBRILE SEIZURE,622,207,False,febrile_seizure
+DIABETES,616,208,False,diabetes
+PAIN,592,209,False,pain
+NEPHROLITHIASIS,559,210,False,nephrolithiasis
+FOREIGN BODY IN EAR,544,211,False,foreign_body_in_ear
+BOIL,540,212,False,boil
+POSSIBLE HERNIA,539,213,False,possible_hernia
+MANIC BEHAVIOR,526,214,False,manic_behavior
+BEHAVIORAL PROBLEM,521,215,False,behavioral_problem
+MISCARRIAGE,515,216,False,miscarriage
+FAILURE TO THRIVE,501,217,False,failure_to_thrive
+JAUNDICE,492,218,False,jaundice
+BODY FLUID EXPOSURE,491,219,False,body_fluid_exposure
+GUN SHOT WOUND,487,220,False,gun_shot_wound
+COPD,481,221,False,copd
+STAB WOUND,476,222,False,stab_wound
+RIB INJURY,470,223,False,rib_injury
+GASTROESOPHAGEAL REFLUX,466,224,False,gastroesophageal_reflux
+DEEP VEIN THROMBOSIS,466,225,False,deep_vein_thrombosis
+PARANOID,453,226,False,paranoid
+ARM SWELLING,449,227,False,arm_swelling
+TREMORS,448,228,False,tremors
+CEREBROVASCULAR ACCIDENT,441,229,False,cerebrovascular_accident
+PREGNANCY TEST,438,230,False,pregnancy_test
+DRAINAGE FROM INCISION,434,231,False,drainage_from_incision
+HAND BURN,430,232,False,hand_burn
+CONCUSSION,420,233,False,concussion
+BREAST PROBLEM,419,234,False,breast_problem
+INTRAVENOUS ACCESS,419,235,False,intravenous_access
+INSOMNIA,415,236,False,insomnia
+CHEMICAL EXPOSURE,413,237,False,chemical_exposure
+SWALLOWING PROBLEM,402,238,False,swallowing_problem
+POST-PARTUM COMPLICATIONS,397,239,False,post_partum_complications
+CALF PAIN,396,240,False,calf_pain
+COLD EXPOSURE,388,241,False,cold_exposure
+MIGRAINE,387,242,False,migraine
+TOE INJURY,386,243,False,toe_injury
+RECTAL PAIN,379,244,False,rectal_pain
+CAST PROBLEM,378,245,False,cast_problem
+VAGINAL DISCHARGE,367,246,False,vaginal_discharge
+GAIT PROBLEMS,364,247,False,gait_problems
+FRACTURE,363,248,False,fracture
+AV FISTULA,350,249,False,av_fistula
+THROAT PAIN,340,250,False,throat_pain
+MUSCLE PAIN,335,251,False,muscle_pain
+HEAT EXPOSURE,335,252,False,heat_exposure
+CONJUNCTIVITIS,328,253,False,conjunctivitis
+MOTOR VEHICLE VS PEDESTRIAN,327,254,False,motor_vehicle_vs_pedestrian
+EYE DRAINAGE,326,255,False,eye_drainage
+BLURRED VISION,324,256,False,blurred_vision
+PLEURISY,322,257,False,pleurisy
+OSTOMY ASSESSMENT,322,258,False,ostomy_assessment
+GROIN SWELLING,321,259,False,groin_swelling
+NECK INJURY,315,260,False,neck_injury
+WOUND DEHISCENCE,313,261,False,wound_dehiscence
+GI PROBLEMS,313,262,False,gi_problems
+EAR DRAINAGE,310,263,False,ear_drainage
+FROSTBITE,304,264,False,frostbite
+LOSS OF APPETITE,300,265,False,loss_of_appetite
+HYPOXEMIA,294,266,False,hypoxemia
+PACEMAKER PROBLEMS,292,267,False,pacemaker_problems
+MEMORY LOSS,292,268,False,memory_loss
+CHOKING,287,269,False,choking
+LAB ONLY,282,270,False,lab_only
+ASPIRATION,280,271,False,aspiration
+PUNCTURE WOUND,274,272,False,puncture_wound
+TONGUE SWELLING,271,273,False,tongue_swelling
+NECK SWELLING,271,274,False,neck_swelling
+PERI RECTAL ABSCESS,269,275,False,peri_rectal_abscess
+TAILBONE PAIN,269,276,False,tailbone_pain
+PANCREATITIS,268,277,False,pancreatitis
+HYPERKALEMIA,266,278,False,hyperkalemia
+CLAVICLE INJURY,263,279,False,clavicle_injury
+INFECTION,256,280,False,infection
+ORAL SWELLING,252,281,False,oral_swelling
+CARBON MONOXIDE,245,282,False,carbon_monoxide
+SKIN ULCER,244,283,False,skin_ulcer
+PHARYNGITIS,242,284,False,pharyngitis
+AGITATION,240,285,False,agitation
+CHF,238,286,False,chf
+SUPRAVENTRICULAR TACHYCARDIA,232,287,False,supraventricular_tachycardia
+SORE,226,288,False,sore
+WELL CHILD,221,289,False,well_child
+ASCITES,220,290,False,ascites
+ABRASION,219,291,False,abrasion
+CHEST INJURY,217,292,False,chest_injury
+HYPOTHERMIA,216,293,False,hypothermia
+NEEDLESTICK,210,294,False,needlestick
+HEARTBURN,210,295,False,heartburn
+HOMICIDAL,208,296,False,homicidal
+HUMAN BITE,208,297,False,human_bite
+DRUG SCREEN,200,298,False,drug_screen
+DENTAL INJURY,196,299,False,dental_injury
+POST OP TONSILLECTOMY,196,300,False,post_op_tonsillectomy
+EVALUATION OF CHILD ABUSE,194,301,False,evaluation_of_child_abuse
+DRESSING CHANGE,193,302,False,dressing_change
+FOREIGN BODY IN VAGINA,186,303,False,foreign_body_in_vagina
+TRANSIENT ISCHEMIC ATTACK,182,304,False,transient_ischemic_attack
+INFLUENZA,179,305,False,influenza
+SMOKE INHALATION,179,306,False,smoke_inhalation
+DYSPHAGIA,178,307,False,dysphagia
+ABNORMAL ELECTROCARDIOGRAM (ECG) (EKG),177,308,False,abnormal_electrocardiogram_ecg_ekg
+INCISIONAL PAIN,177,309,False,incisional_pain
+ECTOPIC PREGNANCY,174,310,False,ectopic_pregnancy
+MOUTH LESION,173,311,False,mouth_lesion
+HOMELESS,170,312,False,homeless
+HYPOKALEMIA,167,313,False,hypokalemia
+VAGINAL ITCHING,163,314,False,vaginal_itching
+WEIGHT LOSS,163,315,False,weight_loss
+RECTAL PROLAPSE,161,316,False,rectal_prolapse
+EVAL PT MAINTENANCE,161,317,False,eval_pt_maintenance
+CRUSH INJURY,159,318,False,crush_injury
+HERNIA,156,319,False,hernia
+BLISTER,156,320,False,blister
+SHINGLES,155,321,False,shingles
+ANGIOEDEMA,154,322,False,angioedema
+INCONTINENCE,154,323,False,incontinence
+MORNING SICKNESS,152,324,False,morning_sickness
+DIVERTICULITIS,151,325,False,diverticulitis
+BLOOD INFECTION,150,326,False,blood_infection
+ALLERGIES,150,327,False,allergies
+EAR FULLNESS,150,328,False,ear_fullness
+NOSE PROBLEM,148,329,False,nose_problem
+APPENDICITIS,147,330,False,appendicitis
+JOINT SWELLING,145,331,False,joint_swelling
+LOSS OF CONSCIOUSNESS,144,332,False,loss_of_consciousness
+GOUT,142,333,False,gout
+ABNORMAL CT,137,334,False,abnormal_ct
+FOOT ULCER,137,335,False,foot_ulcer
+IV MEDICATION,137,336,False,iv_medication
+MENOMETRORRHAGIA,135,337,False,menometrorrhagia
+DIAPER RASH,134,338,False,diaper_rash
+MOTOR VEHICLE VS BICYCLE,133,339,False,motor_vehicle_vs_bicycle
+CONGESTION,133,340,False,congestion
+PRIAPISM,132,341,False,priapism
+EAR INJURY,131,342,False,ear_injury
+CRAMPING,131,343,False,cramping
+FOREIGN BODY IN RECTUM,131,344,False,foreign_body_in_rectum
+DELUSIONAL,131,345,False,delusional
+JOINT PAIN,129,346,False,joint_pain
+INFUSION,125,347,False,infusion
+EAR LACERATION,123,348,False,ear_laceration
+SUNBURN,123,349,False,sunburn
+FACIAL BURN,121,350,False,facial_burn
+OVARIAN CYST,119,351,False,ovarian_cyst
+ELECTRIC SHOCK,117,352,False,electric_shock
+HYPONATREMIA,114,353,False,hyponatremia
+SWEATS,114,354,False,sweats
+DEMENTIA,114,355,False,dementia
+COLD EXTREMITY,111,356,False,cold_extremity
+AMPUTATION,109,357,False,amputation
+PENILE DISCHARGE,109,358,False,penile_discharge
+ABDOMINAL INJURY,106,359,False,abdominal_injury
+HEARING PROBLEM,106,360,False,hearing_problem
+EDEMA,103,361,False,edema
+FOOT BURN,103,362,False,foot_burn
+REFILL REQUEST,101,363,False,refill_request
+URINE OUTPUT,101,364,False,urine_output
+BODY LACERATION,101,365,False,body_laceration
+WOUND ASSESSMENT,100,366,False,wound_assessment
+EXCESSIVE DRUG USE,100,367,False,excessive_drug_use
+TICK REMOVAL,99,368,False,tick_removal
+HEART PROBLEM,98,369,False,heart_problem
+IMM/INJ,96,370,False,imm_inj
+TRACHEOSTOMY TUBE CHANGE,93,371,False,tracheostomy_tube_change
+TOENAIL,92,372,False,toenail
+METRORRHAGIA,91,373,False,metrorrhagia
+PULMONARY EMBOLUS,91,374,False,pulmonary_embolus
+PNEUMONIA,90,375,False,pneumonia
+BREAST MASS,90,376,False,breast_mass
+NEAR DROWNING,89,377,False,near_drowning
+TOXIC INHALATION,89,378,False,toxic_inhalation
+EVALUATION OF DOMESTIC VIOLENCE,88,379,False,evaluation_of_domestic_violence
+RESPIRATORY ARREST,88,380,False,respiratory_arrest
+LYMPHADENOPATHY,88,381,False,lymphadenopathy
+LIVER PROBLEM,88,382,False,liver_problem
+SINUSITIS,88,383,False,sinusitis
+IUD,85,384,False,iud
+HICCUPS,81,385,False,hiccups
+EAR INFECTION,81,386,False,ear_infection
+CROHNS,79,387,False,crohns
+HYPEREMESIS,79,388,False,hyperemesis
+SKIN INFECTION,79,389,False,skin_infection
+SCAN,78,390,False,scan
+POISON IVY,78,391,False,poison_ivy
+G TUBE CHANGE,77,392,False,g_tube_change
+THRUSH,74,393,False,thrush
+AIRWAY OBSTRUCTION,70,394,False,airway_obstruction
+ATRIAL FLUTTER,70,395,False,atrial_flutter
+HOSPITALIZATION OR ADMISSION,69,396,False,hospitalization_or_admission
+MENSTRUAL PROBLEM,67,397,False,menstrual_problem
+MEDICATION PROBLEM,67,398,False,medication_problem
+NAVEL PROBLEMS,66,399,False,navel_problems
+APNEA,66,400,False,apnea
+ARTHRITIS,65,401,False,arthritis
+PACEMAKER/ICD,64,402,False,pacemaker_icd
+LINE INFECTION,64,403,False,line_infection
+VERTIGO,63,404,False,vertigo
+POISONING,63,405,False,poisoning
+INJURY,62,406,False,injury
+NEUROPATHY,61,407,False,neuropathy
+SCHIZOPHRENIA,61,408,False,schizophrenia
+VISUAL FIELDS CHANGE,61,409,False,visual_fields_change
+RHEUMATOID ARTHRITIS,60,410,False,rheumatoid_arthritis
+GROIN INJURY,60,411,False,groin_injury
+POST-OP HERNIA,57,412,False,post_op_hernia
+POST OP TUBES,54,413,False,post_op_tubes
+JAW DISLOCATION,54,414,False,jaw_dislocation
+LAB,53,415,False,lab
+EATING DISORDER,52,416,False,eating_disorder
+RECREATIONAL VEHICLE ACCIDENT,51,417,False,recreational_vehicle_accident
+ABDOMINAL CRAMPING,51,418,False,abdominal_cramping
+RESTLESS LEGS,49,419,False,restless_legs
+SLEEP PROBLEM,49,420,False,sleep_problem
+VARICOSE VEINS,49,421,False,varicose_veins
+TICK BITE,48,422,False,tick_bite
+WOUND VAC PLACEMENT,47,423,False,wound_vac_placement
+CHANGE IN STOOLS,47,424,False,change_in_stools
+BLADDER PROBLEM,47,425,False,bladder_problem
+WORD FINDING PROBLEMS,46,426,False,word_finding_problems
+AICD PROBLEM,44,427,False,aicd_problem
+NECK MASS,44,428,False,neck_mass
+TINNITUS,42,429,False,tinnitus
+ECZEMA,42,430,False,eczema
+HEAD LICE,41,431,False,head_lice
+WEIGHT PROBLEM,39,432,False,weight_problem
+MUSCULOSKELETAL PROBLEM,39,433,False,musculoskeletal_problem
+DIFFICULTY WALKING,39,434,False,difficulty_walking
+HEARING LOSS,39,435,False,hearing_loss
+PARALYSIS,38,436,False,paralysis
+IMPLANTABLE CARDIAC DEFIBRILLATOR ADJUSTMENT,38,437,False,implantable_cardiac_defibrillator_adjustment
+VISITING NURSE,38,438,False,visiting_nurse
+SPINAL INJURY,37,439,False,spinal_injury
+CHRONIC PAIN,36,440,False,chronic_pain
+THYROID PROBLEM,36,441,False,thyroid_problem
+ACUTE RENAL FAILURE,35,442,False,acute_renal_failure
+STRIDOR,35,443,False,stridor
+BLOATED,35,444,False,bloated
+RESULTS,35,445,False,results
+CYANOSIS,34,446,False,cyanosis
+DIPLOPIA,33,447,False,diplopia
+CLOUDY VISION,33,448,False,cloudy_vision
+CANCER,32,449,False,cancer
+DROOLING,31,450,False,drooling
+PLEURAL EFFUSION,31,451,False,pleural_effusion
+ANEURYSM,31,452,False,aneurysm
+ABDOMINAL AORTIC ANEURYSM,31,453,False,abdominal_aortic_aneurysm
+HOT FLASHES,30,454,False,hot_flashes
+EXCESSIVE SWEATING,30,455,False,excessive_sweating
+FIBROMYALGIA,30,456,False,fibromyalgia
+PORTACATH FLUSH,29,457,False,portacath_flush
+PROSTATE PROBLEM,29,458,False,prostate_problem
+LARYNGITIS,29,459,False,laryngitis
+DEAD ON ARRIVAL,29,460,False,dead_on_arrival
+PILONIDAL CYST,28,461,False,pilonidal_cyst
+DIABETIC FOOT CARE,28,462,False,diabetic_foot_care
+ULCER,28,463,False,ulcer
+MULTIPLE SCLEROSIS,28,464,False,multiple_sclerosis
+CIRCUMCISION,27,465,False,circumcision
+DYSFUNCTIONAL UTERINE BLEEDING,27,466,False,dysfunctional_uterine_bleeding
+RUNNY NOSE,27,467,False,runny_nose
+CIRCULATORY PROBLEMS,27,468,False,circulatory_problems
+TRANSFUSION,26,469,False,transfusion
+CARDIAC DYSRHYTHMIAS,26,470,False,cardiac_dysrhythmias
+SPLINT,26,471,False,splint
+CIRRHOSIS,25,472,False,cirrhosis
+VENTRICULAR TACHYCARDIA,25,473,False,ventricular_tachycardia
+MRSA,25,474,False,mrsa
+HEART BLOCK,25,475,False,heart_block
+ULTRASOUND,24,476,False,ultrasound
+POST OP QUESTION,24,477,False,post_op_question
+NASAL PAIN,24,478,False,nasal_pain
+CHRONIC RENAL FAILURE,24,479,False,chronic_renal_failure
+CAST REMOVAL,24,480,False,cast_removal
+WELLNESS PHYSICAL,23,481,False,wellness_physical
+STRESS,23,482,False,stress
+POST TRAUMATIC STRESS DISORDER (PTSD),23,483,False,post_traumatic_stress_disorder_ptsd
+ABNORMAL HEART SCREEN,23,484,False,abnormal_heart_screen
+ANEMIA MANAGEMENT,23,485,False,anemia_management
+SPITTING UP,23,486,False,spitting_up
+PALLOR,22,487,False,pallor
+GAS,22,488,False,gas
+ABNORMAL G TUBE,22,489,False,abnormal_g_tube
+FUSSY CHILD,22,490,False,fussy_child
+PRENATAL CARE,22,491,False,prenatal_care
+CONGESTIVE HEART FAILURE,22,492,False,congestive_heart_failure
+MEMORY PROBLEMS,22,493,False,memory_problems
+WORK RELATED INJURY,22,494,False,work_related_injury
+DECREASE SENSE OF SMELL/SMELLING LOSS,21,495,False,decrease_sense_of_smell_smelling_loss
+HOARSE,21,496,False,hoarse
+RESTLESS LEG SYNDROME,21,497,False,restless_leg_syndrome
+UTERINE PROLAPSE,20,498,False,uterine_prolapse
+CAST REPAIR,20,499,False,cast_repair
+BRAIN TUMOR,20,500,False,brain_tumor
+MENORRHAGIA,20,501,False,menorrhagia
+ENLARGED LYMPH NODES,20,502,False,enlarged_lymph_nodes
+HEAD SWELLING,20,503,False,head_swelling
+HAIR/SCALP PROBLEM,20,504,False,hair_scalp_problem
+ADDICTION PROBLEM,20,505,False,addiction_problem
+FEEDING DIFFICULTIES,19,506,False,feeding_difficulties
+PHYSICAL,19,507,False,physical
+MEDICATION MANAGEMENT,19,508,False,medication_management
+FECAL INCONTINENCE,19,509,False,fecal_incontinence
+URETHRAL PROBLEM,19,510,False,urethral_problem
+GANGRENE,19,511,False,gangrene
+HYPERCALCEMIA,19,512,False,hypercalcemia
+C-DIFF POSITIVE,18,513,False,c_diff_positive
+DERMATITIS,18,514,False,dermatitis
+REFERRAL,18,515,False,referral
+PIERCING,18,516,False,piercing
+BREAST DISCHARGE,18,517,False,breast_discharge
+DYSPHASIA,18,518,False,dysphasia
+URGENCY,17,519,False,urgency
+SNAKE BITE,17,520,False,snake_bite
+IMPETIGO,17,521,False,impetigo
+MEDICAL QUESTION,17,522,False,medical_question
+LUNG CANCER,17,523,False,lung_cancer
+SURGERY,17,524,False,surgery
+TUBERCULOSIS,17,525,False,tuberculosis
+PERIPHERAL NEUROPATHY,17,526,False,peripheral_neuropathy
+LUPUS,17,527,False,lupus
+NAIL PROBLEM,17,528,False,nail_problem
+ANAL FISSURE,17,529,False,anal_fissure
+INCISIONAL WOUND,16,530,False,incisional_wound
+MONO,16,531,False,mono
+ELEVATED LIVER ENZYMES,16,532,False,elevated_liver_enzymes
+EVALUATION FOR CHILD ABUSE,16,533,False,evaluation_for_child_abuse
+UPPER BACK PAIN,16,534,False,upper_back_pain
+BOWEL DYSFUNCTION,16,535,False,bowel_dysfunction
+CHOLECYSTITIS,16,536,False,cholecystitis
+DISRUPTIVE BEHAVIOR,15,537,False,disruptive_behavior
+EXPOSURE TO COMMUNICABLE DISEASE,15,538,False,exposure_to_communicable_disease
+SPEECH LANGUAGE DELAY,15,539,False,speech_language_delay
+CHRONIC KIDNEY DISEASE,15,540,False,chronic_kidney_disease
+ANGER,15,541,False,anger
+STOOL COLOR CHANGE,14,542,False,stool_color_change
+PYELONEPHRITIS,14,543,False,pyelonephritis
+PARKINSONS,14,544,False,parkinsons
+ANOREXIA,14,545,False,anorexia
+CARPAL TUNNEL,14,546,False,carpal_tunnel
+THROMBOCYTOPENIA,14,547,False,thrombocytopenia
+TONSILLAR MASS,13,548,False,tonsillar_mass
+ADDISONS DISEASE,13,549,False,addisons_disease
+CARDIAC DEVICE EVALUATION,13,550,False,cardiac_device_evaluation
+TEMPOROMANDIBULAR JOINT PAIN,13,551,False,temporomandibular_joint_pain
+HYPOCALCEMIA,13,552,False,hypocalcemia
+G TUBE FOLLOW UP,13,553,False,g_tube_follow_up
+HYDROCEPHALUS,13,554,False,hydrocephalus
+EQUIPMENT TROUBLE SHOOTING,13,555,False,equipment_trouble_shooting
+EXCESSIVE ALCOHOL USE,13,556,False,excessive_alcohol_use
+CHOLELITHIASIS,13,557,False,cholelithiasis
+POLYURIA,13,558,False,polyuria
+COLITIS,13,559,False,colitis
+LYME DISEASE,13,560,False,lyme_disease
+GRIEF,12,561,False,grief
+PAIN PUMP QUESTIONS,12,562,False,pain_pump_questions
+OSTEOMYELITIS,12,563,False,osteomyelitis
+BLEEDING DISORDER,12,564,False,bleeding_disorder
+ULCERATIVE COLITIS,12,565,False,ulcerative_colitis
+ESOPHAGITIS,12,566,False,esophagitis
+DELIRIUM TREMENS (DTS),12,567,False,delirium_tremens_dts
+GROIN BURN,12,568,False,groin_burn
+STYE,12,569,False,stye
+CRITICAL TEST RESULT,12,570,False,critical_test_result
+ABNORMAL CXR,12,571,False,abnormal_cxr
+SKIN CHECK,12,572,False,skin_check
+SOCIAL WORKER VISIT,11,573,False,social_worker_visit
+BITE,11,574,False,bite
+POST CHEMO,11,575,False,post_chemo
+MYASTHENIA GRAVIS,11,576,False,myasthenia_gravis
+MEDICATION QUESTION,11,577,False,medication_question
+BLADDER DYSFUNCTION,11,578,False,bladder_dysfunction
+NEUTROPENIA,10,579,False,neutropenia
+BURNING EYES,10,580,False,burning_eyes
+NUTRITION CHILD/INFANT,10,581,False,nutrition_child_infant
+PHYSICAL-OTHER,10,582,False,physical_other
+FONTANELE BULGING,10,583,False,fontanele_bulging
+PHLEBITIS,10,584,False,phlebitis
+PRE OP COORDINATION,10,585,False,pre_op_coordination
+HERNIA REPAIR,10,586,False,hernia_repair
+DETACHED RETINA,10,587,False,detached_retina
+HYPERNATREMIA,9,588,False,hypernatremia
+ANAL FISTUAL,9,589,False,anal_fistual
+PROCEDURE,9,590,False,procedure
+PETECHIAE,9,591,False,petechiae
+SKIN DISCOLORATION,9,592,False,skin_discoloration
+ELEVATED CREATININE,9,593,False,elevated_creatinine
+ENDOMETRIOSIS,9,594,False,endometriosis
+TEETHING,9,595,False,teething
+PERIPHERAL VASCULAR DISEASE,9,596,False,peripheral_vascular_disease
+SPOTS AND/OR FLOATERS,9,597,False,spots_and_or_floaters
+FOOT CARE,9,598,False,foot_care
+RINGING IN THE EARS,8,599,False,ringing_in_the_ears
+DYSMENORRHEA,8,600,False,dysmenorrhea
+INSULIN REACTION,8,601,False,insulin_reaction
+EYE BURN,8,602,False,eye_burn
+POSTPARTUM CARE,8,603,False,postpartum_care
+RUNAWAY,8,604,False,runaway
+FECAL IMPACTION,8,605,False,fecal_impaction
+ORAL PAIN,8,606,False,oral_pain
+HOSPICE,8,607,False,hospice
+MUSCULAR DYSTROPHY,8,608,False,muscular_dystrophy
+RECTO VAGINAL FISTULA,7,609,False,recto_vaginal_fistula
+HEPATIC DISEASE,7,610,False,hepatic_disease
+LYMPHEDEMA,7,611,False,lymphedema
+CONTACT LENS IRRITATION,7,612,False,contact_lens_irritation
+ERECTILE DYSFUNCTION,7,613,False,erectile_dysfunction
+PELVIC ORGAN PROLAPSE,7,614,False,pelvic_organ_prolapse
+HYDRONEPHROSIS,7,615,False,hydronephrosis
+BEHAVIORAL HEALTH TESTING,7,616,False,behavioral_health_testing
+GASTRITIS,7,617,False,gastritis
+TICS,7,618,False,tics
+TORTICOLLIS,7,619,False,torticollis
+CONTRACTIONS,7,620,False,contractions
+VASCULITIS,7,621,False,vasculitis
+CERUMEN IMPACTION,7,622,False,cerumen_impaction
+LABORING,7,623,False,laboring
+ANTICOAGULATION,7,624,False,anticoagulation
+CASE MANAGEMENT/RESOURCE VISIT,7,625,False,case_management_resource_visit
+HEMOPHILIA,6,626,False,hemophilia
+COVID 19 OUTPATIENT THERAPY REFERRAL,6,627,False,covid_19_outpatient_therapy_referral
+BEHAVIORAL HEALTH APPOINTMENT REQUEST,6,628,False,behavioral_health_appointment_request
+ENDOCARDITIS,6,629,False,endocarditis
+RECURRENT URINARY TRACT INFECTION,6,630,False,recurrent_urinary_tract_infection
+PSORIATIC ARTHRITIS,6,631,False,psoriatic_arthritis
+ITCHY EYE,6,632,False,itchy_eye
+SCHIZOAFFECTIVE DISORDER,6,633,False,schizoaffective_disorder
+ALLIED HEALTH VISIT,6,634,False,allied_health_visit
+CONTRACEPTION,6,635,False,contraception
+GYN EXAM,6,636,False,gyn_exam
+THOUGHTS OF HURTING ONESELF,6,637,False,thoughts_of_hurting_oneself
+LIGHTENING STRIKE,6,638,False,lightening_strike
+ENCOPRESIS,6,639,False,encopresis
+STRESS URINARY INCONTINENCE,6,640,False,stress_urinary_incontinence
+PERSPIRATION,6,641,False,perspiration
+COGNITIVE DYSFUNCTION,6,642,False,cognitive_dysfunction
+PHOTOPHOBIA,6,643,False,photophobia
+CORNEAL ABRASION,5,644,False,corneal_abrasion
+ANAL ITCHING,5,645,False,anal_itching
+ATHLETE'S FOOT,5,646,False,athlete_s_foot
+NARCOLEPSY,5,647,False,narcolepsy
+PEPPER SPRAY,5,648,False,pepper_spray
+HEAD MASS,5,649,False,head_mass
+KIDNEY TRANSPLANT,5,650,False,kidney_transplant
+SKIN LESION,5,651,False,skin_lesion
+ABN FOLLOW-UP,5,652,False,abn_follow_up
+IRON DEFICIENCY,5,653,False,iron_deficiency
+INCISIONAL PROBLEM OF CHEST,5,654,False,incisional_problem_of_chest
+MEDICATION CHANGE REQUEST,5,655,False,medication_change_request
+IRREGULAR MENSES,5,656,False,irregular_menses
+CYSTIC FIBROSIS,5,657,False,cystic_fibrosis
+PRE-ECLAMPSIA,5,658,False,pre_eclampsia
+PULMONARY HYPERTENSION,5,659,False,pulmonary_hypertension
+LEUKEMIA,5,660,False,leukemia
+CAROTID ARTERY STENOSIS,5,661,False,carotid_artery_stenosis
+POLYDIPSIA,5,662,False,polydipsia
+MOTORCYCLE VERSUS PEDESTRIAN,4,663,False,motorcycle_versus_pedestrian
+SEXUALLY TRANSMITTED DISEASE,4,664,False,sexually_transmitted_disease
+CYSTITIS,4,665,False,cystitis
+DYSKINESIA,4,666,False,dyskinesia
+CHEMOTHERAPY,4,667,False,chemotherapy
+DECREASED FETAL MOVEMENT,4,668,False,decreased_fetal_movement
+PERIODIC LIMB MOVEMENT,4,669,False,periodic_limb_movement
+REACTIVE AIRWAY DISEASE,4,670,False,reactive_airway_disease
+PRESSURE BEHIND THE EYES,4,671,False,pressure_behind_the_eyes
+PANCREATIC CANCER,4,672,False,pancreatic_cancer
+HEART MURMUR,4,673,False,heart_murmur
+HEALTH MAINTENANCE,4,674,False,health_maintenance
+ORBITAL FRACTURE,4,675,False,orbital_fracture
+STRESS TEST,4,676,False,stress_test
+PAPERWORK REQUEST,4,677,False,paperwork_request
+FOLLICULITIS,4,678,False,folliculitis
+TRAUMATIC BRAIN INJURY,4,679,False,traumatic_brain_injury
+BLADDER PROLAPSE,4,680,False,bladder_prolapse
+BLINDNESS,4,681,False,blindness
+BURSITIS,4,682,False,bursitis
+NASAL POLYPS,4,683,False,nasal_polyps
+PACEMAKER ADJUSTMENT,4,684,False,pacemaker_adjustment
+HYPERTHYROIDISM,4,685,False,hyperthyroidism
+HYPERTHERMIA,4,686,False,hyperthermia
+GOUTY ARTHRITIS,4,687,False,gouty_arthritis
+AMENORRHEA,4,688,False,amenorrhea
+PERICARDITIS,4,689,False,pericarditis
+WEST NILE VIRUS INFECTION,3,690,False,west_nile_virus_infection
+LIVER CANCER,3,691,False,liver_cancer
+HEPATITIS C,3,692,False,hepatitis_c
+IRRITABLE BOWEL SYNDROME,3,693,False,irritable_bowel_syndrome
+RECTAL CANCER,3,694,False,rectal_cancer
+MEDICATION DOSE CHANGE,3,695,False,medication_dose_change
+POOR WEIGHT GAIN,3,696,False,poor_weight_gain
+PROLAPSE,3,697,False,prolapse
+PRE-OP EXAM,3,698,False,pre_op_exam
+PANCREAS PROBLEM,3,699,False,pancreas_problem
+BREAST ABNORMALITY,3,700,False,breast_abnormality
+THYROID MASS,3,701,False,thyroid_mass
+BREAST CANCER,3,702,False,breast_cancer
+EMPLOYMENT PHYSICAL,3,703,False,employment_physical
+GASTROPARESIS,3,704,False,gastroparesis
+NEPHROTIC SYNDROME,3,705,False,nephrotic_syndrome
+HAIR LOSS,3,706,False,hair_loss
+ABNORMAL PET SCAN,3,707,False,abnormal_pet_scan
+LATENT TUBERCULOSIS,3,708,False,latent_tuberculosis
+LETTER,3,709,False,letter
+MOOD DISORDER,3,710,False,mood_disorder
+CELIAC DISEASE,3,711,False,celiac_disease
+HIV,3,712,False,hiv
+DEATH,3,713,False,death
+PROSTATE CANCER,3,714,False,prostate_cancer
+PSORIASIS,3,715,False,psoriasis
+STRESS REACTION,3,716,False,stress_reaction
+OPTIC NEURITIS,2,717,False,optic_neuritis
+SUPPLY MANAGEMENT,2,718,False,supply_management
+GLUCOSE INTOLERANCE,2,719,False,glucose_intolerance
+NURSING HOME,2,720,False,nursing_home
+FAT NECROSIS,2,721,False,fat_necrosis
+ORTHOSIS RECHECK,2,722,False,orthosis_recheck
+PALLIATIVE CARE REFERRAL,2,723,False,palliative_care_referral
+APNEA OF PREMATURITY,2,724,False,apnea_of_prematurity
+ALS (AMYOTROPHIC LATERAL SCLEROSIS),2,725,False,als_amyotrophic_lateral_sclerosis
+CARE COORDINATION,2,726,False,care_coordination
+ABSTRACT,2,727,False,abstract
+URGE INCONTINENCE,2,728,False,urge_incontinence
+AUTISM,2,729,False,autism
+SYSTEMIC LUPUS ERYTHEMATOSUS,2,730,False,systemic_lupus_erythematosus
+MOLE CHECK,2,731,False,mole_check
+METABOLIC SYNDROME,2,732,False,metabolic_syndrome
+GROWTH IN NASAL PASSAGE,2,733,False,growth_in_nasal_passage
+GASTRIC BYPASS,2,734,False,gastric_bypass
+EMERGENCY CONTRACEPTION,2,735,False,emergency_contraception
+BIOPSY,2,736,False,biopsy
+NEPHROPATHY,2,737,False,nephropathy
+PHYSICAL ABUSE ISSUES,2,738,False,physical_abuse_issues
+CLOTTING DISORDER,2,739,False,clotting_disorder
+PULMONARY FIBROSIS,2,740,False,pulmonary_fibrosis
+PTOSIS,2,741,False,ptosis
+DIABETIC SUPPLIES,2,742,False,diabetic_supplies
+RENAL INSUFFICIENCY,2,743,False,renal_insufficiency
+RENAL MASS,2,744,False,renal_mass
+COLON CANCER,2,745,False,colon_cancer
+RUPTURE OF MEMBRANES,2,746,False,rupture_of_membranes
+POSTMENOPAUSAL BLEEDING,2,747,False,postmenopausal_bleeding
+COAGULATION DISORDER,2,748,False,coagulation_disorder
+PREMATURITY,2,749,False,prematurity
+PRE-EVAL PT MAINTENANCE,2,750,False,pre_eval_pt_maintenance
+PRUITIS,2,751,False,pruitis
+SPASTICITY,2,752,False,spasticity
+SPINE CENTER REFERRAL,2,753,False,spine_center_referral
+CLAUDICATION,2,754,False,claudication
+ELDER ABUSE,2,755,False,elder_abuse
+INFLAMMATORY ARTHRITIS,2,756,False,inflammatory_arthritis
+LYMPHOMA,2,757,False,lymphoma
+REHAB REFERRAL,2,758,False,rehab_referral
+DECREASED VISUAL ACUITY,2,759,False,decreased_visual_acuity
+INCISIONAL PROBLEM OF BREAST,2,760,False,incisional_problem_of_breast
+HEPATITIS,2,761,False,hepatitis
+MEDICATION COUNSELING,2,762,False,medication_counseling
+SICKLE CELL ANEMIA,2,763,False,sickle_cell_anemia
+SKIN TAG,2,764,False,skin_tag
+SNORING,2,765,False,snoring
+SEROMA,2,766,False,seroma
+SCAR,2,767,False,scar
+SEXUAL ABUSE ISSUES,2,768,False,sexual_abuse_issues
+KIDNEY TRANSPLANT FOLLOW-UP,2,769,False,kidney_transplant_follow_up
+ABNORMAL EEG,2,770,False,abnormal_eeg
+IMPLANT RUPTURE,2,771,False,implant_rupture
+VASECTOMY,2,772,False,vasectomy
+VITAMIN DEFICIENCY,2,773,False,vitamin_deficiency
+ADVANCE CARE PLANNING,1,774,False,advance_care_planning
+ALLERGIC RHINITIS,1,775,False,allergic_rhinitis
+WARTS,1,776,False,warts
+WEIGHT CHECK,1,777,False,weight_check
+KAWASAKI DISEASE,1,778,False,kawasaki_disease
+KIDNEY TRANSPLANT EVALUATION,1,779,False,kidney_transplant_evaluation
+LABIAL ADHESIONS,1,780,False,labial_adhesions
+LARYNGOMALACIA,1,781,False,laryngomalacia
+LESION REMOVAL,1,782,False,lesion_removal
+HYPERTONIA,1,783,False,hypertonia
+HYPHEMA,1,784,False,hyphema
+BEHAVIORAL HEALTH TRIAGE THERAPIST VISIT,1,785,False,behavioral_health_triage_therapist_visit
+BLACK EYE,1,786,False,black_eye
+BLADDER CANCER,1,787,False,bladder_cancer
+ALOPECIA,1,788,False,alopecia
+APLASTIC ANEMIA,1,789,False,aplastic_anemia
+TRANSPLANT SURGERY,1,790,False,transplant_surgery
+UPPER GI PROCEDURE,1,791,False,upper_gi_procedure
+CONTINUUM OF CARE,1,792,False,continuum_of_care
+COVID-19 OUTPATIENT TREATMENT INELIGIBLE,1,793,False,covid_19_outpatient_treatment_ineligible
+SCOLIOSIS,1,794,False,scoliosis
+SICK SINUS SYNDROME,1,795,False,sick_sinus_syndrome
+SNEEZING,1,796,False,sneezing
+SOCIAL WITHDRAWL,1,797,False,social_withdrawl
+CEREBRAL PALSY,1,798,False,cerebral_palsy
+CERVICAL CANCER,1,799,False,cervical_cancer
+DEVELOPMENT PROBLEMS,1,800,False,development_problems
+RENAL TRANSPLANT,1,801,False,renal_transplant
+RN HTN CLINIC FOLLOW UP,1,802,False,rn_htn_clinic_follow_up
+SARCOMA,1,803,False,sarcoma
+COLONOSCOPY RECALL,1,804,False,colonoscopy_recall
+COLORECTAL CANCER,1,805,False,colorectal_cancer
+POLYMYALGIA RHEUMATICA,1,806,False,polymyalgia_rheumatica
+PREMATURE VENTRICULAR CONTRACTIONS,1,807,False,premature_ventricular_contractions
+PROCEDURE PREP,1,808,False,procedure_prep
+RADIATION THERAPY,1,809,False,radiation_therapy
+CYTOMEGALOVIRUS INFECTION,1,810,False,cytomegalovirus_infection
+EOSINOPHILIC ESOPHAGITIS,1,811,False,eosinophilic_esophagitis
+ESTABLISH CARE,1,812,False,establish_care
+EVENT MONITOR TRANSMISSION,1,813,False,event_monitor_transmission
+DOMESTIC MEDICAL EXAM,1,814,False,domestic_medical_exam
+PERSONAL HEALTH ASSESSMENT,1,815,False,personal_health_assessment
+PERSONAL PROBLEM,1,816,False,personal_problem
+CHILD ABUSE,1,817,False,child_abuse
+CHRONIC RESPIRATORY FAILURE,1,818,False,chronic_respiratory_failure
+SQUAMOUS CELL CARCINOMA,1,819,False,squamous_cell_carcinoma
+SUBACUTE BACTERIAL PERITONITIS,1,820,False,subacute_bacterial_peritonitis
+SUPERFICIAL INJURY,1,821,False,superficial_injury
+SUPRAGLOTTIC CANCER,1,822,False,supraglottic_cancer
+BOTOX,1,823,False,botox
+FEEDING INTOLERANCE,1,824,False,feeding_intolerance
+FIBROIDS,1,825,False,fibroids
+OSTEOARTHRITIS,1,826,False,osteoarthritis
+PCOS,1,827,False,pcos
+PELVIC INFLAMMATORY DISEASE,1,828,False,pelvic_inflammatory_disease
+EMPYEMA,1,829,False,empyema
+END STAGE RENAL DISEASE,1,830,False,end_stage_renal_disease
+ENURESIS,1,831,False,enuresis
+GENETIC DISORDER,1,832,False,genetic_disorder
+GENITAL WARTS,1,833,False,genital_warts
+GINGIVITIS,1,834,False,gingivitis
+NEPHRITIS,1,835,False,nephritis
+NEUROFIBROMATOSIS,1,836,False,neurofibromatosis
+NEW EQUIPMENT SETUP,1,837,False,new_equipment_setup
+NICOTINE DEPENDENCE,1,838,False,nicotine_dependence
+NOCTURIA,1,839,False,nocturia
+NUTRITION COUNSELING,1,840,False,nutrition_counseling
+OBSTRUCTIVE SLEEP APNEA,1,841,False,obstructive_sleep_apnea
+OMMAYA RESERVOIR,1,842,False,ommaya_reservoir
+FAMILY PROBLEM,1,843,False,family_problem
+HOSPITAL F/U,1,844,False,hospital_f_u
+HEAD AND NECK CANCER,1,845,False,head_and_neck_cancer
+HEART FAILURE CLINIC,1,846,False,heart_failure_clinic
+MULTIPLE MYELOMA,1,847,False,multiple_myeloma
+LOW DOSE CT,1,848,False,low_dose_ct
+MACULAR DEGENERATION,1,849,False,macular_degeneration
+MEDICATION TITRATION,1,850,False,medication_titration
+MENIERE'S DISEASE,1,851,False,meniere_s_disease
+HEPATITIS B,1,852,False,hepatitis_b
+BREAST FEEDING,1,853,False,breast_feeding
+BUNION,1,854,False,bunion
+CALLOUSES,1,855,False,callouses
+CARDIAC PROCEDURE PREP,1,856,False,cardiac_procedure_prep
+TAKAYASU'S ARTERITIS,1,857,False,takayasu_s_arteritis
+TEEN EVALUATION,1,858,False,teen_evaluation
+TETROLOGY OF FALLOT,1,859,False,tetrology_of_fallot
+THOUGHTS OF HURTING OTHERS,1,860,False,thoughts_of_hurting_others
+BARRETT'S ESOPHAGUS,1,861,False,barrett_s_esophagus
+ADRENAL CANCER,1,862,False,adrenal_cancer
+ADJUSTMENT ISSUES,1,863,False,adjustment_issues
+ADENOPATHY,1,864,False,adenopathy
+URGENT CARE FOLLOW UP,1,865,False,urgent_care_follow_up
+UTERINE CANCER,1,866,False,uterine_cancer
+ACCESSORY NIPPLE,1,867,False,accessory_nipple
