@@ -1,0 +1,29 @@
+#
+# DSU-2026 core dependencies
+# - Enough to run Data Source + Pipelines A–E + Eval
+# - Also supports the XGBoost baseline scripts under `scripts/` and the visualization helpers
+#
+
+# Numerical / data
+numpy>=1.24
+pandas>=2.0
+
+# Gradient boosting models
+lightgbm>=4.0
+xgboost>=2.0
+
+# Classical statistics / ML utilities
+statsmodels>=0.14
+scikit-learn>=1.3
+optuna>=3.0
+
+# I/O + external data
+pyarrow>=14.0      # parquet I/O used in data source + pipelines
+requests>=2.31     # Open-Meteo / CDC / EPA API calls in data source
+holidays>=0.40     # US holiday calendar in external_data
+
+# Visualization (used by scripts in `Visualizations/`)
+matplotlib>=3.8
+seaborn>=0.13
+plotly>=5.18
+

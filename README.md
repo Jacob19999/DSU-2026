@@ -63,42 +63,58 @@ Forecast future daily ED volumes for **September and October 2025** (Calendar Ye
 
 ## Baseline Model
 
-The baseline model consists of two pipelines for forecasting ED volumes:
+The original baseline consisted of two conceptual pipelines:
 
-### Pipeline 1: Direct Volume Prediction
-Takes the entire dataset and uses machine learning models (e.g., Ensemble methods) to predict volume directly.
+- **Direct volume prediction**: Train a single ML model to predict block-level volume directly from calendar and historical features.
+- **Category-based prediction**: Forecast volumes by reason-category, then aggregate back to total volume.
 
-### Pipeline 2: Category-Based Prediction
-Categorizes reason codes into subcategories with different seasonal trends. Runs predictions for each category/subcategory, then aggregates results for the final prediction.
+These ideas are now implemented in a more robust multi-pipeline framework under `Pipelines/`.
 
-### Data Ingestion
+## Current Pipeline Strategy (`Pipelines/`)
 
-The data ingestion module (`baseline_model/data_ingestion/`) provides utilities for loading and splitting the dataset:
+The production code under `Pipelines/` implements the strategy described in `Strategies/Implementation plan/`:
 
-- **`load_dataset()`**: Loads the DSU dataset CSV and converts Date to datetime
-- **`split_by_date_range()`**: Splits data into train/test sets by date ranges
-- **`create_validation_splits()`**: Creates all validation splits for cross-validation
-- **`aggregate_to_blocks()`**: Aggregates hourly data to 6-hour time blocks
+- **Data Source layer** (`Pipelines/data_source/`): Builds a canonical block-level history (`master_block_history.parquet`) from the raw CSV, adds calendar + case-mix + external covariates (events, weather, school calendar, CDC ILI, AQI).
+- **Pipeline A — Global GBDT** (`Pipelines/Pipeline A/`): Single LightGBM pair (total volume + admit rate) trained across all (Site, Block) series with safe lags (≥63 days) and heavy feature engineering; this is the primary workhorse model.
+- **Pipeline B — Direct Multi-Step GBDT** (`Pipelines/Pipeline B/`): Horizon-aware LightGBM models that keep short-horizon lags (buckets for days 1–15, 16–30, 31–61) to recover signal that Pipeline A discards.
+- **Pipeline C — Hierarchical Daily → Block** (`Pipelines/Pipeline C/`): First forecasts smooth daily site-level totals, then predicts block shares and allocates back to blocks, enforcing that block forecasts sum exactly to the daily total.
+- **Pipeline D — GLM/GAM with Fourier seasonality** (`Pipelines/Pipeline D/`): Poisson GLMs with explicit weekly/annual Fourier terms and trend; low-variance, highly interpretable baseline that complements tree models.
+- **Pipeline E — Reason-Mix Latent Factors** (`Pipelines/Pipeline E/`): Compresses reason-level case mix into PCA/NMF factors, forecasts factor trajectories, and feeds them as extra regressors into a final GBDT for volume + admit rate.
+- **Evaluation harness** (`Pipelines/Eval/`): Shared evaluator that scores any pipeline’s submission-shaped CSVs on the 4-fold forward validation scheme defined in `Strategies/eval.md`.
+- **Orchestrator** (`Pipelines/run_all_pipelines.py`): Convenience wrapper to run multiple pipelines and compare their validation scores.
 
-### Validation Strategy
+All pipelines share the same evaluation contract:
 
-Since the competition requires predicting 2 months into the future (September-October 2025) and we don't have the unlabeled dataset, we use 2025 data split by 2-month increments for validation.
+- **Targets**: `ED Enc` (total encounters) and `ED Enc Admitted` (admitted encounters)
+- **Granularity**: `(Site, Date, Block)` with 4 sites (A–D), 61 forecast days (2025‑09‑01 to 2025‑10‑31), and 4 daily blocks
+- **Metric**: WAPE, with mean admitted WAPE across 4 validation folds as the primary comparison number
 
-**4 Validation Periods** (each using 2-month test windows):
-1. **Period 1**: Train up to Dec 2024, predict Jan-Feb 2025
-2. **Period 2**: Train up to Feb 2025, predict Mar-Apr 2025
-3. **Period 3**: Train up to Apr 2025, predict May-Jun 2025
-4. **Period 4**: Train up to Jun 2025, predict Jul-Aug 2025
+### Running the pipelines (from repo root)
 
-The final performance of each pipeline is the **average performance across all 4 validation periods**.
+1. **Build the unified block history (once):**
 
-### Analysis Script
+```bash
+python "Pipelines/data_source/run_data_source.py"
+```
 
-The `analyze_dataset.py` script provides comprehensive exploratory data analysis including:
-- Dataset overview and missing values
-- Site-level statistics
-- Time-based analysis (hourly, monthly trends)
-- Visit reason distributions
-- Admission rate analysis by site and reason
+2. **Run individual pipelines (each writes fold CSVs and metrics under its own `output/`):**
 
-Run with: `python analyze_dataset.py`
+```bash
+python "Pipelines/Pipeline A/run_pipeline.py"
+python "Pipelines/Pipeline B/run_pipeline.py"
+python "Pipelines/Pipeline C/run_pipeline.py"
+python "Pipelines/Pipeline D/run_pipeline.py"
+python "Pipelines/Pipeline E/run_pipeline.py"
+```
+
+3. **Run cross-pipeline evaluation / comparison (optional):**
+
+```bash
+python "Pipelines/Eval/run_eval.py"
+```
+
+4. **Generate the final Sept–Oct 2025 forecast for a given pipeline (example for Pipeline A):**
+
+```bash
+python "Pipelines/Pipeline A/run_pipeline.py" --final-forecast
+```
