@@ -84,10 +84,19 @@ def generate_final_forecast(
             continue
 
         pred_data = build_bucket_data(
-            base_df, bid,
+            base_df,
+            bid,
             horizons=sorted(set(val_horizons)),
             target_dates=valid_dates,
         )
+
+        # Keep exactly one row per (site, date, block) by matching the
+        # bucket horizon to the true forecast horizon for that date.
+        # Without this, each (site, date, block) is replicated for every
+        # candidate horizon in the bucket, inflating the submission size.
+        mask = (pred_data["date"] - train_end).dt.days == pred_data["days_ahead"]
+        pred_data = pred_data[mask].copy()
+
         pred_data = apply_fold_encodings(pred_data, enc_maps, fallback)
 
         # ── Predict ──────────────────────────────────────────────────────

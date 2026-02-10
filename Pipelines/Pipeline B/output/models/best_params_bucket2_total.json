@@ -1,0 +1,13 @@
+{
+  "objective": "tweedie",
+  "n_estimators": 2318,
+  "max_depth": 4,
+  "learning_rate": 0.04357565573279957,
+  "num_leaves": 198,
+  "subsample": 0.7997913223889715,
+  "colsample_bytree": 0.7891592039642156,
+  "reg_lambda": 6.586365694908275,
+  "min_child_weight": 5,
+  "tweedie_variance_power": 1.8608963221940624,
+  "verbosity": -1
+}
