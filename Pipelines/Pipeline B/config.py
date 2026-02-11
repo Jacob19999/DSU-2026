@@ -50,7 +50,7 @@ COVID_WEIGHT = 0.1     # Downweight factor for COVID-era rows
 BUCKETS = {
     1: {"h_min": 1,  "h_max": 15, "min_lag": 16},
     2: {"h_min": 16, "h_max": 30, "min_lag": 31},
-    3: {"h_min": 31, "h_max": 61, "min_lag": 62},
+    3: {"h_min": 31, "h_max": 62, "min_lag": 63},
 }
 
 # Sub-sampled horizons per bucket — reduces 61× expansion to ~13×

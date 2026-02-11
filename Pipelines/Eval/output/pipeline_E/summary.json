@@ -1,0 +1,6 @@
+{
+  "pipeline": "E",
+  "n_folds": 4,
+  "mean_admitted_wape": 0.27658711455357227,
+  "mean_total_wape": 0.14550715158181338
+}
