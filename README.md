@@ -34,6 +34,47 @@ The Sanford Health Emergency Department (ED) dataset contains visit records from
 - **Average Daily Volume**: ~419 visits per day
 - **Time Range**: 2,800 days (2018-01-01 to 2025-08-31)
 
+### Ground Truth & Evaluation Construction
+
+The competition only ships **one raw file**, `Dataset/DSU-Dataset.csv`, at **hourly grain**:
+
+- `Site, Date, Hour, REASON_VISIT_NAME, ED Enc, ED Enc Admitted`
+
+There is **no separate `train.csv` or `test.csv`**. All training, validation, and evaluation ground truth is derived from this single file as follows:
+
+- **Hour → Block mapping** (canonical, used everywhere in this repo):
+  - 00:00–05:59 → `Block = 0`
+  - 06:00–11:59 → `Block = 1`
+  - 12:00–17:59 → `Block = 2`
+  - 18:00–23:59 → `Block = 3`
+- **Aggregation to competition grain**:
+  - Group `DSU-Dataset.csv` by `(Site, Date, Block)` using the mapping above.
+  - Sum `ED Enc` and `ED Enc Admitted` within each group to produce block-level totals.
+  - Normalize `Date` to `YYYY-MM-DD` strings for stable joins.
+
+This produces the **block-level truth table** used by the shared evaluator (`Strategies/eval.md`) for all 4 forward-validation windows.
+
+### Synthetic “Test” Grid for Sept–Oct 2025
+
+Because there is no separate `test.csv`, the Sept–Oct 2025 forecast target is defined by a **synthetic grid** constructed from the calendar and site list:
+
+- `Site ∈ {A, B, C, D}`
+- `Date ∈ 2025-09-01 .. 2025-10-31` (61 days)
+- `Block ∈ {0, 1, 2, 3}`
+
+This yields **4 × 61 × 4 = 976 rows**. Every pipeline’s final forecast must:
+
+- Output **exactly this grid** (no missing or duplicate `(Site, Date, Block)` keys)
+- Use the exact column names:
+  - `Site, Date, Block, ED Enc, ED Enc Admitted`
+- Respect the hard constraints:
+  - `ED Enc ≥ 0`
+  - `ED Enc Admitted ≥ 0`
+  - `ED Enc Admitted ≤ ED Enc`
+  - Both targets integer-valued (after rounding)
+
+The evaluation harness under `Pipelines/Eval/` uses these rules consistently for both cross-validation and final forecast scoring.
+
 ## Forecasting Objective
 
 Forecast future daily ED volumes for **September and October 2025** (Calendar Year 2025) by:
@@ -57,9 +98,9 @@ Forecast future daily ED volumes for **September and October 2025** (Calendar Ye
 - **Output Format**: Forecasts should be provided for each combination of:
   - Facility (Site)
   - Date (Sept 1-30, 2025; Oct 1-31, 2025)
-  - 6-hour time block (0-5, 6-11, 12-17, 18-23)
-  - Total encounters
-  - Admitted encounters
+  - 6-hour time block (0-5, 6-11, 12-17, 18-23) → encoded as `Block ∈ {0,1,2,3}` via `Block = Hour // 6`
+  - Total encounters (`ED Enc`)
+  - Admitted encounters (`ED Enc Admitted`)
 
 ## Baseline Model
 

@@ -4,11 +4,11 @@
     "A": 0.2848724304189383,
     "B": 0.2785761823566075,
     "C": 0.29133770603750736,
-    "D": 0.38918487664153767,
+    "D": 0.38882794071214055,
     "E": 0.27658711455357227
   },
-  "mean_wape": 0.30411166200163264,
-  "std_wape": 0.04284958638062992,
-  "cv": 0.14090083260404487,
+  "mean_wape": 0.30404027481575324,
+  "std_wape": 0.04270785832535481,
+  "cv": 0.1404677664866457,
   "interpretation": "PARTIAL CONVERGENCE -- some diversity remains. Ensemble will help; investigate outlier pipelines."
 }

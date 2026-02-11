@@ -63,6 +63,16 @@ def main() -> None:
         "Deterministic features (events, school calendar) are always generated. "
         "Cached API data is still loaded if available.",
     )
+    parser.add_argument(
+        "--use-reason-embeddings",
+        action="store_true",
+        help=(
+            "Enable experimental reason-embedding features in the Data Source. "
+            "This currently wires a no-op hook (`embedding.add_embedding_features`) "
+            "that can later be extended to emit block-level embedding vectors "
+            "derived from REASON_VISIT_NAME."
+        ),
+    )
 
     args = parser.parse_args()
     _setup_logging()
@@ -70,6 +80,7 @@ def main() -> None:
     config = DataSourceConfig(
         top_n_reasons=args.top_n_reasons,
         fetch_apis=not args.no_fetch,
+        use_reason_embeddings=args.use_reason_embeddings,
     )
     logging.getLogger(__name__).info("Using config: %s", config)
 
