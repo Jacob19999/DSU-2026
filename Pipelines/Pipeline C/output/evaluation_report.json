@@ -1,0 +1,55 @@
+{
+  "mean_admitted_wape": 0.29191483415545183,
+  "mean_total_wape": 0.1493268629183706,
+  "mean_admitted_rmse": 3.240957691504716,
+  "mean_total_rmse": 5.833854608192819,
+  "mean_daily_total_wape": 0.07814717308951484,
+  "allocation_error_delta": 0.07117968982885577,
+  "share_model_type": "climatology",
+  "per_fold": [
+    {
+      "fold_id": 1,
+      "window": "2025-01-01..2025-02-28",
+      "total_wape": 0.1485547916374351,
+      "admitted_wape": 0.29672926252953613,
+      "total_rmse": 5.815398174863299,
+      "admitted_rmse": 3.315666459069219,
+      "total_mae": 4.486228813559322,
+      "admitted_mae": 2.527542372881356,
+      "n_rows": 944
+    },
+    {
+      "fold_id": 2,
+      "window": "2025-03-01..2025-04-30",
+      "total_wape": 0.14673305558378213,
+      "admitted_wape": 0.2989665945686133,
+      "total_rmse": 5.707343558241722,
+      "admitted_rmse": 3.3308050520980608,
+      "total_mae": 4.438524590163935,
+      "admitted_mae": 2.5491803278688523,
+      "n_rows": 976
+    },
+    {
+      "fold_id": 3,
+      "window": "2025-05-01..2025-06-30",
+      "total_wape": 0.14904215840326301,
+      "admitted_wape": 0.289778206364513,
+      "total_rmse": 5.850598960510053,
+      "admitted_rmse": 3.1896990967595755,
+      "total_mae": 4.567622950819672,
+      "admitted_mae": 2.4631147540983607,
+      "n_rows": 976
+    },
+    {
+      "fold_id": 4,
+      "window": "2025-07-01..2025-08-31",
+      "total_wape": 0.1529774460490021,
+      "admitted_wape": 0.2821852731591449,
+      "total_rmse": 5.962077739156203,
+      "admitted_rmse": 3.127660158092009,
+      "total_mae": 4.752016129032258,
+      "admitted_mae": 2.3951612903225805,
+      "n_rows": 992
+    }
+  ]
+}
