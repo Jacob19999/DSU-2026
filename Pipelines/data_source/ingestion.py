@@ -37,7 +37,7 @@ from .config import (
     SITES,
 )
 from .external_data import add_external_features
-from .embedding import add_embedding_features
+from .embedding import EmbeddingConfig, add_embedding_features
 
 
 logger = logging.getLogger(__name__)
@@ -117,14 +117,15 @@ def run_data_ingestion(
             output_dir=DATA_DIR,
         )
 
-    # 5. Optional: experimental embedding features derived from reason mix
+    # 5. Optional: embedding features derived from reason mix
     if getattr(config, "use_reason_embeddings", False):
-        logger.info("Adding experimental reason-embedding features (no-op stub).")
+        logger.info("Adding reason-embedding features (SapBERT → MiniLM → TF-IDF+SVD).")
+        embed_cfg = EmbeddingConfig(cache_dir=config.external_cache_dir)
         master = add_embedding_features(
             block_df=master,
             visits=visits,
             data_config=config,
-            embed_config=None,
+            embed_config=embed_cfg,
         )
 
     # 6. Deterministic calendar and COVID/halloween flags

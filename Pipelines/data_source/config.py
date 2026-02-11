@@ -54,11 +54,12 @@ TOP_N_REASONS = 20
 
 # Experimental: whether to request reason-embedding features from the
 # Data Source layer. When enabled, the ingestion pipeline will call into
-# `embedding.add_embedding_features` to optionally append block-level
-# embedding vectors derived from REASON_VISIT_NAME. The current default
-# implementation is a no-op, so enabling this flag is safe but has no
-# effect until embeddings are implemented.
+# `embedding.add_embedding_features` to append block-level embedding
+# vectors derived from REASON_VISIT_NAME (SapBERT → MiniLM → TF-IDF+SVD).
 USE_REASON_EMBEDDINGS = False
+
+# Embedding cache lives alongside other API caches
+EMBEDDING_CACHE_DIR = EXTERNAL_CACHE_DIR
 
 
 @dataclass(frozen=True)

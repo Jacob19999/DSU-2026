@@ -22,6 +22,9 @@ pyarrow>=14.0      # parquet I/O used in data source + pipelines
 requests>=2.31     # Open-Meteo / CDC / EPA API calls in data source
 holidays>=0.40     # US holiday calendar in external_data
 
+# Embeddings (optional — TF-IDF+SVD fallback works without this)
+sentence-transformers>=2.2  # SapBERT / MiniLM encoders for reason embeddings
+
 # Visualization (used by scripts in `Visualizations/`)
 matplotlib>=3.8
 seaborn>=0.13
