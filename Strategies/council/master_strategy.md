@@ -81,6 +81,41 @@ The current `scripts/train_models.py` uses a **28-day rolling window** validatio
 
 Similarly, the current lag features (`lags=[1, 7, 14, 28]` with `shift(1)` rolling) **leak future data** when evaluated on the 2-month windows. The lag/rolling overhaul described in §3.1 is a prerequisite, not optional.
 
+### 2.5 Ground Truth & Forecast Grid Construction
+
+**Data reality:** The competition provides **only one raw file**, `DSU-Dataset.csv`, at **hourly grain** with columns:
+- `Site, Date, Hour, REASON_VISIT_NAME, ED Enc, ED Enc Admitted`
+
+There is **no separate `train.csv` / `test.csv` split** and no pre-built block-level truth. All ground truth used for validation and for defining the Sept–Oct 2025 “test” grid is derived from this single file.
+
+**Ground truth construction (all folds):**
+- **Step 1 — Filter by date window:** For a given validation fold, take all rows from `DSU-Dataset.csv` whose `Date` lies inside the train+validation span (2018‑01‑01 through the fold’s `test_end`).
+- **Step 2 — Map hours to blocks:** Compute `Block = Hour // 6` with the canonical mapping:
+  - 00:00–05:59 → Block 0  
+  - 06:00–11:59 → Block 1  
+  - 12:00–17:59 → Block 2  
+  - 18:00–23:59 → Block 3
+- **Step 3 — Aggregate to competition grain:** Group by `(Site, Date, Block)` and sum:
+  - `ED Enc` → block-level total encounters  
+  - `ED Enc Admitted` → block-level admitted encounters
+- **Step 4 — Normalize dates:** Convert `Date` to `YYYY-MM-DD` strings so joins with prediction CSVs are stable.
+
+This produces the **canonical truth table** at the same grain as the required predictions, exactly matching the evaluation contract in `Strategies/eval.md`.
+
+**Forecast grid for Sept–Oct 2025 (synthetic “test” set):**
+- Because there is no separate `test.csv`, the Sept–Oct 2025 “test set” is defined purely by the calendar and site list:
+  - `Site ∈ {A,B,C,D}`
+  - `Date ∈ 2025-09-01..2025-10-31` (61 days)
+  - `Block ∈ {0,1,2,3}`
+- This yields **4 × 61 × 4 = 976 rows**. Every pipeline’s final forecast must:
+  - Produce **exactly this grid** (no missing or duplicate `(Site, Date, Block)` combinations)
+  - Use the column names `(Site, Date, Block, ED Enc, ED Enc Admitted)`
+  - Respect hard constraints: `ED Enc ≥ 0`, `ED Enc Admitted ≥ 0`, `ED Enc Admitted ≤ ED Enc`, and integer-valued outputs (after rounding).
+
+**Conclusion:** Ground truth and the “test” grid are **both derived from `DSU-Dataset.csv`** — the hourly raw file is simultaneously:
+- The **only source of truth** used by the evaluator (after aggregation to blocks), and
+- The basis for defining which future dates/blocks must be forecast (Sept–Oct 2025 grid).
+
 ### 2.4 Sanity Checks
 - No single site's WAPE should exceed 2× the best site's WAPE
 - Block-level errors should be stable (common failure: overnight Block 0 drifts)
@@ -417,8 +452,10 @@ The target window has distinct seasonal signals that features should capture:
 ```
 
 **Key contracts:**
+- **Ground truth source (single file):** All truth comes from `Dataset/DSU-Dataset.csv` at hourly grain; there is **no separate competition test file**. The evaluator aggregates this to `(Site, Date, Block)` using `Block = Hour // 6` to create fold-specific truth tables.
 - **Data Source → Pipelines**: `master_block_history.parquet` with schema defined in `data_source.md` §2. Block numbering is `0-3` (matching `eval.md`). No imputation — NaN preserved.
-- **Pipelines → Eval**: Submission-shaped CSV per fold, with columns `(Site, Date, Block, ED Enc, ED Enc Admitted)` and all hard constraints from `eval.md`.
+- **Pipelines → Eval (CV)**: One submission-shaped CSV **per validation window** with columns `(Site, Date, Block, ED Enc, ED Enc Admitted)` covering the full required grid for that fold.
+- **Pipelines → Eval (final forecast)**: One submission-shaped CSV for the synthetic Sept–Oct 2025 grid (4 sites × 61 days × 4 blocks = 976 rows) with the same columns and hard constraints.
 - **Eval → Selection**: `primary_admitted_wape` (mean across 4 folds) is the single ranking metric.
 
 ### 7.2 Pipeline Convergence as Predictive Ceiling
