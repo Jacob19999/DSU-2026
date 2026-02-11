@@ -64,8 +64,13 @@ def generate_final_forecast(
     pred_data = df_fold.loc[pred_mask].copy()
 
     if covid_policy == "exclude":
-        train_fit = train_fit[~train_fit["is_covid_era"]].copy()
-
+        # Only exclude COVID era rows if the feature exists
+        if "is_covid_era" in train_fit.columns:
+            mask = train_fit["is_covid_era"].astype(bool)
+            train_fit = train_fit[~mask].copy()
+        else:
+            print("  [WARN] covid_policy='exclude' but 'is_covid_era' not in columns; skipping exclusion.")
+            
     train_fit = train_fit.dropna(subset=[f"lag_{cfg.LAG_DAYS[-1]}"])
 
     X_fit = train_fit[feature_cols]
