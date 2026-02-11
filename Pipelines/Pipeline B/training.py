@@ -217,6 +217,14 @@ def train_fold(
         preds["pred_total"]    = pred_total
         preds["pred_admitted"] = pred_admitted
         preds["bucket"]        = bid
+
+        # Aggregate across horizons → one row per (site, date, block)
+        preds = (
+            preds.groupby(["site", "date", "block"], as_index=False)
+            .agg(pred_total=("pred_total", "mean"),
+                 pred_admitted=("pred_admitted", "mean"),
+                 bucket=("bucket", "first"))
+        )
         all_val_preds.append(preds)
 
         # Quick per-bucket metric (on overlapping actuals)
@@ -240,6 +248,14 @@ def train_fold(
         return {"fold_id": fold_id}
 
     val_out = pd.concat(all_val_preds, ignore_index=True)
+
+    # ── Deduplicate: average across buckets for same (site, date, block) ─
+    if val_out.duplicated(subset=["site", "date", "block"]).any():
+        val_out = (
+            val_out.groupby(["site", "date", "block"], as_index=False)
+            .agg(pred_total=("pred_total", "mean"),
+                 pred_admitted=("pred_admitted", "mean"))
+        )
 
     # ── Post-process: largest-remainder rounding per (Site, Date) ────────
     for (_s, _d), grp in val_out.groupby(["site", "date"]):
