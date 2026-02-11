@@ -47,10 +47,18 @@ COVID_START = "2020-03-01"
 COVID_END = "2021-06-30"
 
 
-# ── Case-Mix Configuration ─────────────────────────────────────────────────────
+# ── Case-Mix / Embedding Configuration ─────────────────────────────────────────
 
-# Number of top REASON_VISIT_NAME categories to keep as explicit columns
+# Number of top REASON_VISIT_NAME categories to keep as explicit columns.
 TOP_N_REASONS = 20
+
+# Experimental: whether to request reason-embedding features from the
+# Data Source layer. When enabled, the ingestion pipeline will call into
+# `embedding.add_embedding_features` to optionally append block-level
+# embedding vectors derived from REASON_VISIT_NAME. The current default
+# implementation is a no-op, so enabling this flag is safe but has no
+# effect until embeddings are implemented.
+USE_REASON_EMBEDDINGS = False
 
 
 @dataclass(frozen=True)
@@ -65,5 +73,6 @@ class DataSourceConfig:
     top_n_reasons: int = TOP_N_REASONS
     external_cache_dir: Path = EXTERNAL_CACHE_DIR
     fetch_apis: bool = True   # set False to skip network calls (weather/CDC/AQI)
+    use_reason_embeddings: bool = USE_REASON_EMBEDDINGS
 
 

@@ -37,6 +37,7 @@ from .config import (
     SITES,
 )
 from .external_data import add_external_features
+from .embedding import add_embedding_features
 
 
 logger = logging.getLogger(__name__)
@@ -116,10 +117,20 @@ def run_data_ingestion(
             output_dir=DATA_DIR,
         )
 
-    # 5. Deterministic calendar and COVID/halloween flags
+    # 5. Optional: experimental embedding features derived from reason mix
+    if getattr(config, "use_reason_embeddings", False):
+        logger.info("Adding experimental reason-embedding features (no-op stub).")
+        master = add_embedding_features(
+            block_df=master,
+            visits=visits,
+            data_config=config,
+            embed_config=None,
+        )
+
+    # 6. Deterministic calendar and COVID/halloween flags
     master = add_calendar_features(master)
 
-    # 6. External data (events, weather, school calendar, CDC ILI, AQI)
+    # 7. External data (events, weather, school calendar, CDC ILI, AQI)
     master = add_external_features(
         df=master,
         sites=list(SITES),
@@ -138,7 +149,7 @@ def run_data_ingestion(
         master.shape[1],
     )
 
-    # 7. Persist parquet/csv if requested
+    # 8. Persist parquet/csv if requested
     if save:
         _save_master_dataset(master, config)
 
