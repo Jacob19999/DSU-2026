@@ -108,6 +108,14 @@ def main() -> None:
             "+ --submit, plus --final-forecast for pipelines A and C."
         ),
     )
+    parser.add_argument(
+        "--use-reason-embeddings",
+        action="store_true",
+        help=(
+            "Pass --use-reason-embeddings to the Data Source step, enabling "
+            "block-level embedding features derived from REASON_VISIT_NAME."
+        ),
+    )
     args = parser.parse_args()
 
     # Interpret "final" as sugar over lower-level knobs.
@@ -116,9 +124,12 @@ def main() -> None:
 
     # 1) Data Source
     if not args.skip_data_source:
+        ds_extra: list[str] = []
+        if args.use_reason_embeddings:
+            ds_extra.append("--use-reason-embeddings")
         _run_cmd(
             "Data Source",
-            ["-m", "Pipelines.data_source.run_data_source"],
+            ["-m", "Pipelines.data_source.run_data_source", *ds_extra],
         )
 
     # 2) Pipelines
