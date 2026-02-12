@@ -1,13 +1,13 @@
 {
   "objective": "tweedie",
-  "n_estimators": 2779,
-  "max_depth": 8,
-  "learning_rate": 0.020413354170747515,
-  "num_leaves": 55,
-  "subsample": 0.9384013723241821,
-  "colsample_bytree": 0.8843951360534048,
-  "reg_lambda": 6.292528120010597,
-  "min_child_weight": 8,
-  "tweedie_variance_power": 1.8642842804050572,
+  "n_estimators": 2310,
+  "max_depth": 4,
+  "learning_rate": 0.015543651864556913,
+  "num_leaves": 154,
+  "subsample": 0.7229501412065973,
+  "colsample_bytree": 0.8004884533376573,
+  "reg_lambda": 5.587775013898298,
+  "min_child_weight": 7,
+  "tweedie_variance_power": 1.3247010467403335,
   "verbosity": -1
 }
