@@ -60,8 +60,11 @@ def train_daily_fold(
 
     # COVID policy: filter out COVID-era rows (ensure boolean mask)
     if covid_policy == "exclude":
-        mask_non_covid = ~train_data["is_covid_era"].astype(bool)
-        train_data = train_data[mask_non_covid].copy()
+        if "is_covid_era" in train_data.columns:
+            mask_non_covid = ~train_data["is_covid_era"].astype(bool)
+            train_data = train_data[mask_non_covid].copy()
+        else:
+            print("  [WARN] covid_policy='exclude' but 'is_covid_era' not in columns; skipping exclusion.")
 
     # Drop burn-in rows (longest lag NaN)
     longest_lag = f"lag_{cfg.LAG_DAYS_DAILY[-1]}"
@@ -72,7 +75,7 @@ def train_daily_fold(
     X_val = val_data[feature_cols]
 
     # ── Weights ──────────────────────────────────────────────────────────
-    if covid_policy == "exclude":
+    if covid_policy == "exclude" and "is_covid_era" in train_data.columns:
         w_total = train_data["volume_weight"].values
         w_rate = train_data["admitted_enc"].clip(lower=1).values.astype(float)
     else:

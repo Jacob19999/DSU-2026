@@ -144,6 +144,26 @@ def _objective_share(
     return float(np.mean(wapes)) if wapes else float("inf")
 
 
+# ── Helpers ─────────────────────────────────────────────────────────────────
+
+def _reconstruct_daily_params(best_daily: dict) -> dict:
+    """Convert Optuna trial params to train_daily_fold params_total format."""
+    out = {
+        "objective": best_daily.get("obj", "tweedie"),
+        "n_estimators": best_daily.get("n_est", 1500),
+        "max_depth": best_daily.get("max_depth", 6),
+        "learning_rate": best_daily.get("lr", 0.03),
+        "subsample": best_daily.get("subsample", 0.8),
+        "colsample_bytree": best_daily.get("colsample", 0.8),
+        "reg_lambda": best_daily.get("reg_lambda", 5.0),
+        "min_child_weight": best_daily.get("min_child_weight", 10),
+        "verbosity": -1,
+    }
+    if out["objective"] == "tweedie":
+        out["tweedie_variance_power"] = best_daily.get("tvp", 1.5)
+    return out
+
+
 # ── Main entry point ─────────────────────────────────────────────────────────
 
 def run_tuning(
@@ -172,12 +192,23 @@ def run_tuning(
     print(f"  Phase 1 best WAPE: {study_daily.best_value:.4f}")
     print(f"  Best daily params: {best_daily}")
 
+    # Build Phase 1 best params for Phase 2 (share tuning needs daily preds from best daily params)
+    best_params_total = _reconstruct_daily_params(best_daily)
+    best_covid = best_daily.get("covid_policy", "downweight")
+    precomputed_daily = {}
+    for fold in cfg.FOLDS:
+        daily_res = train_daily_fold(
+            daily_df, fold, best_params_total, None,
+            save=False, covid_policy=best_covid,
+        )
+        precomputed_daily[fold["id"]] = daily_res["daily_preds"]
+
     # ── Phase 2: Tune share models ───────────────────────────────────────
     print(f"\n  Phase 2: Tuning share models ({cfg.OPTUNA_N_TRIALS_SHARE} trials) ...")
     study_share = optuna.create_study(direction="minimize",
                                       study_name="pipeline_c_share")
     study_share.optimize(
-        lambda trial: _objective_share(trial, daily_df, share_df),
+        lambda trial: _objective_share(trial, daily_df, share_df, precomputed_daily),
         n_trials=cfg.OPTUNA_N_TRIALS_SHARE,
         show_progress_bar=True,
     )
@@ -187,20 +218,7 @@ def run_tuning(
     print(f"  Best share params: {best_share}")
 
     # ── Reconstruct best param dicts ─────────────────────────────────────
-    best_params_total = {
-        "objective": best_daily.get("obj", "tweedie"),
-        "n_estimators": best_daily.get("n_est", 1500),
-        "max_depth": best_daily.get("max_depth", 6),
-        "learning_rate": best_daily.get("lr", 0.03),
-        "subsample": best_daily.get("subsample", 0.8),
-        "colsample_bytree": best_daily.get("colsample", 0.8),
-        "reg_lambda": best_daily.get("reg_lambda", 5.0),
-        "min_child_weight": best_daily.get("min_child_weight", 10),
-        "verbosity": -1,
-    }
-    if best_params_total["objective"] == "tweedie":
-        best_params_total["tweedie_variance_power"] = best_daily.get("tvp", 1.5)
-
+    best_params_total = _reconstruct_daily_params(best_daily)
     best_covid = best_daily.get("covid_policy", "downweight")
     best_share_type = best_share.get("share_type", cfg.SHARE_MODEL_TYPE)
 

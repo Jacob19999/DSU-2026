@@ -130,6 +130,52 @@ All pipelines share the same evaluation contract:
 - **Granularity**: `(Site, Date, Block)` with 4 sites (A–D), 61 forecast days (2025‑09‑01 to 2025‑10‑31), and 4 daily blocks
 - **Metric**: WAPE, with mean admitted WAPE across 4 validation folds as the primary comparison number
 
+## Evaluation Strategy (First Principles)
+
+The project uses a **submission-shaped, pipeline-agnostic** evaluation contract — pipelines are scored purely from their output in competition format, regardless of how they were built. Full spec in `Strategies/eval.md`.
+
+### Validation Protocol
+
+4× 2-month forward validation windows that mirror the competition's 2-month lookahead:
+
+| Fold | Train ≤        | Validate                    |
+| ---- | -------------- | --------------------------- |
+| 1    | 2024-12-31     | 2025-01-01 → 2025-02-28    |
+| 2    | 2025-02-28     | 2025-03-01 → 2025-04-30    |
+| 3    | 2025-04-30     | 2025-05-01 → 2025-06-30    |
+| 4    | 2025-06-30     | 2025-07-01 → 2025-08-31    |
+
+**Final pipeline score** = mean across all 4 folds.
+
+### Metrics Hierarchy
+
+- **Primary (what we minimize):** Mean Admitted WAPE across 4 folds
+  $$\text{WAPE}(y,\hat{y}) = \frac{\sum |y - \hat{y}|}{\sum |y|}$$
+- **Secondary (diagnostics / tie-breakers):** RMSE, MAE, R² for both `ED Enc` and `ED Enc Admitted`
+- **Breakdowns:** Per-site and per-block WAPE/RMSE to catch localized failures (e.g. Site B dominates, block allocation drifts)
+
+### Submission Contract (Hard Constraints)
+
+Every pipeline output must satisfy — violations cause immediate rejection:
+
+- Full grid coverage: no missing `(Site, Date, Block)` combos, no duplicates
+- `ED Enc ≥ 0`, `ED Enc Admitted ≥ 0`, `ED Enc Admitted ≤ ED Enc`
+- Both targets integer-valued
+
+### Pipeline Convergence Analysis
+
+After all pipelines are scored, compute the **coefficient of variation** of their mean admitted WAPE scores to decide next steps:
+
+$$CV = \frac{\sigma(\text{pipeline WAPEs})}{\mu(\text{pipeline WAPEs})}$$
+
+| CV Range    | Interpretation                                     | Action                                               |
+| ----------- | -------------------------------------------------- | ---------------------------------------------------- |
+| < 0.05      | **Converged** — predictive ceiling reached          | Focus on ensemble post-processing, not new pipelines |
+| 0.05 – 0.15 | **Partial convergence** — some diversity remains    | Ensemble will help; investigate outlier pipelines     |
+| > 0.15      | **Divergent** — pipelines capture different signals | Strong ensemble gains expected; keep all pipelines    |
+
+Pairwise prediction correlations > 0.95 across all pipelines indicate they're making the same errors → ensemble gains will be marginal.
+
 ### Running the pipelines (from repo root)
 
 1. **Build the unified block history (once):**

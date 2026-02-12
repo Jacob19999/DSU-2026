@@ -84,17 +84,17 @@ def train_fold(
 
     df_fold = compute_fold_aggregate_encodings(df, train_mask)
     feature_cols = get_feature_columns(df_fold)
-    cat_features = ["site_enc", "block", "site_x_dow", "site_x_month"]
+    cat_features = [c for c in ["site_enc", "block", "site_x_dow", "site_x_month"] if c in feature_cols]
 
     train_data = df_fold.loc[train_mask].copy()
     val_data = df_fold.loc[val_mask].copy()
 
     # COVID policy
     if covid_policy == "exclude":
-        # Note: ``is_covid_era`` is stored as 0/1 ints after bool casting.
-        # Use an explicit equality check instead of bitwise negation to
-        # avoid pandas treating the mask as an indexer of column labels.
-        train_data = train_data[train_data["is_covid_era"] == 0].copy()
+        if "is_covid_era" in train_data.columns:
+            train_data = train_data[train_data["is_covid_era"] == 0].copy()
+        else:
+            print("  [WARN] covid_policy='exclude' but 'is_covid_era' not in columns; skipping exclusion.")
 
     # Drop rows where longest lag is NaN (burn-in period)
     train_data = train_data.dropna(subset=[f"lag_{cfg.LAG_DAYS[-1]}"])

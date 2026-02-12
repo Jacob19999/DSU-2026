@@ -233,17 +233,16 @@ def evaluate() -> dict:
     fold_wapes = [r["admitted_wape"] for r in fold_results]
     fold_cv = np.std(fold_wapes) / np.mean(fold_wapes) if fold_wapes else float("nan")
 
-    # Check daily sum consistency (block sums must match for each site-date)
-    consistency_violations = 0
-    for (site, date), grp in all_merged.groupby(["Site", "Date"]):
-        pred_sum = grp["ED Enc_pred"].sum()
-        # Each pred was rounded by largest_remainder, so sum should be consistent
-        # (We just count anomalous patterns, not exact violations since truth may differ)
+    # Daily sum consistency: admitted <= total per block; count violations
+    consistency_violations = int((all_merged["ED Enc Admitted_pred"] > all_merged["ED Enc_pred"]).sum())
+    if consistency_violations > 0:
+        print(f"   WARNING: {consistency_violations} block(s) with admitted > total (consistency violation)")
 
     print(f"\n SANITY CHECKS:")
     print(f"   Max site WAPE / Min site WAPE ratio: {max_min_ratio:.2f} (should be < 2.0)")
     print(f"   Block 0 WAPE / Block avg WAPE ratio: {b0_ratio:.2f} (flag if > 2.0)")
     print(f"   Per-fold WAPE std / mean:             {fold_cv:.2f} (flag if > 0.30)")
+    print(f"   Admitted <= total violations:         {consistency_violations} (should be 0)")
     print(sep)
 
     # ── Persist report ───────────────────────────────────────────────────
@@ -254,6 +253,7 @@ def evaluate() -> dict:
         "mean_total_rmse": mean_tr,
         "mean_daily_total_wape": mean_daily_tw,
         "allocation_error_delta": alloc_delta,
+        "consistency_violations": consistency_violations,
         "share_model_type": share_type_used,
         "per_fold": [
             {k: v for k, v in r.items() if k != "_merged"} for r in fold_results

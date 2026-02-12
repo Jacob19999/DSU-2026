@@ -65,7 +65,7 @@ def load_data() -> pd.DataFrame:
         df[col] = df.groupby("site")[col].ffill()
         df[col] = df.groupby("site")[col].bfill()
         if df[col].isna().any():
-            clim = df.groupby(["site", "month"])[col].transform("mean")
+            clim = df.groupby(["site", df["date"].dt.month])[col].transform("mean")
             df[col] = df[col].fillna(clim)
 
     # ── Summary ──────────────────────────────────────────────────────────

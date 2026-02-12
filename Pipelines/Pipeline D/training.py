@@ -65,10 +65,11 @@ def train_total_model(
         family=family,
         freq_weights=weights.values,
     )
+    alpha_vec = np.array([0.0] + [alpha] * (X_train.shape[1] - 1))
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         result = model.fit_regularized(
-            alpha=alpha,
+            alpha=alpha_vec,
             L1_wt=cfg.GLM_L1_WT,
             maxiter=cfg.GLM_MAXITER,
         )
@@ -104,10 +105,11 @@ def train_rate_model(
         var_weights=var_w,
         freq_weights=weights.values,
     )
+    alpha_vec = np.array([0.0] + [alpha] * (X_train.shape[1] - 1))
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         result = model.fit_regularized(
-            alpha=alpha,
+            alpha=alpha_vec,
             L1_wt=cfg.GLM_L1_WT,
             maxiter=cfg.GLM_MAXITER,
         )

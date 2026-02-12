@@ -138,6 +138,61 @@ def train_bucket(
 
 # ── Per-fold: train all buckets + predict on val window ──────────────────────
 
+def _eval_on_val_window(
+    model_total: lgb.LGBMRegressor,
+    model_rate: lgb.LGBMRegressor | None,
+    base_df: pd.DataFrame,
+    bucket_data: pd.DataFrame,
+    bid: int,
+    fold: dict,
+    fcols: list[str],
+    *,
+    target: str = "total",
+) -> float:
+    """Predict on fold val window, return WAPE. Target: 'total' or 'rate'."""
+    train_end = pd.Timestamp(fold["train_end"])
+    val_start = pd.Timestamp(fold["val_start"])
+    val_end = pd.Timestamp(fold["val_end"])
+    bucket = cfg.BUCKETS[bid]
+
+    val_dates = pd.date_range(val_start, val_end)
+    val_horizons = []
+    valid_dates = set()
+    for d in val_dates:
+        h = (d - train_end).days
+        if bucket["h_min"] <= h <= bucket["h_max"]:
+            val_horizons.append(h)
+            valid_dates.add(d)
+    if not val_horizons:
+        return float("nan")
+
+    pred_data = build_bucket_data(
+        base_df, bid,
+        horizons=sorted(set(val_horizons)),
+        target_dates=valid_dates,
+    )
+    enc_maps, fallback = compute_fold_encodings(base_df, fold["train_end"])
+    pred_data = apply_fold_encodings(pred_data, enc_maps, fallback)
+    mask = (pred_data["date"] - train_end).dt.days == pred_data["days_ahead"]
+    pred_data = pred_data[mask].copy()
+
+    X_val = pred_data[fcols]
+    pred_total = model_total.predict(X_val).clip(0)
+    pred_rate = model_rate.predict(X_val).clip(0, 1) if model_rate else None
+
+    actual = base_df[
+        (base_df["date"] >= val_start) & (base_df["date"] <= val_end)
+    ][["site", "date", "block", "total_enc", "admitted_enc"]]
+    merged = pred_data.merge(actual, on=["site", "date", "block"], how="left")
+
+    if target == "total":
+        return wape(merged["total_enc"].values, pred_total)
+    # target == "rate": WAPE on admit_rate (predicted rate vs actual rate)
+    tot, adm = merged["total_enc"].values, merged["admitted_enc"].values
+    actual_rate = np.where(tot > 0, adm / tot, 0.0)
+    return wape(actual_rate, pred_rate)
+
+
 def train_fold(
     base_df: pd.DataFrame,
     bucket_data_map: dict[int, pd.DataFrame],
@@ -207,24 +262,20 @@ def train_fold(
         )
         pred_data = apply_fold_encodings(pred_data, enc_maps, fallback)
 
+        # Filter to exact horizon per date (matches submission behavior)
+        mask = (pred_data["date"] - train_end).dt.days == pred_data["days_ahead"]
+        pred_data = pred_data[mask].copy()
+
         # ── Predict ──────────────────────────────────────────────────────
         X_pred = pred_data[feature_cols]
         pred_total    = model_total.predict(X_pred).clip(0)
         pred_rate     = model_rate.predict(X_pred).clip(0, 1)
         pred_admitted = pred_total * pred_rate
 
-        preds = pred_data[["site", "date", "block", "days_ahead"]].copy()
+        preds = pred_data[["site", "date", "block"]].copy()
         preds["pred_total"]    = pred_total
         preds["pred_admitted"] = pred_admitted
         preds["bucket"]        = bid
-
-        # Aggregate across horizons → one row per (site, date, block)
-        preds = (
-            preds.groupby(["site", "date", "block"], as_index=False)
-            .agg(pred_total=("pred_total", "mean"),
-                 pred_admitted=("pred_admitted", "mean"),
-                 bucket=("bucket", "first"))
-        )
         all_val_preds.append(preds)
 
         # Quick per-bucket metric (on overlapping actuals)
@@ -416,14 +467,17 @@ def run_optuna_tuning(
                     bucket_data, base_df, bid, fold,
                 )
                 try:
-                    m_total, _ = train_bucket(train_df, es_df, fcols, params, None)
-                    # Quick WAPE on ES set
-                    preds = m_total.predict(es_df[fcols]).clip(0)
-                    fold_wapes.append(wape(es_df["total_enc"].values, preds))
+                    m_total, m_rate = train_bucket(train_df, es_df, fcols, params, None)
+                    # Eval on val window, not ES (avoids optimistic bias)
+                    w = _eval_on_val_window(
+                        m_total, m_rate, base_df, bucket_data, bid, fold, fcols,
+                        target="total",
+                    )
+                    fold_wapes.append(w)
                 except Exception:
                     return float("inf")
 
-            return float(np.mean(fold_wapes))
+            return float(np.nanmean(fold_wapes))
 
         study_t = optuna.create_study(direction="minimize",
                                        study_name=f"B_bucket{bid}_total")
@@ -456,13 +510,17 @@ def run_optuna_tuning(
                     bucket_data, base_df, bid, fold,
                 )
                 try:
-                    _, m_rate = train_bucket(train_df, es_df, fcols, best_total, params)
-                    preds = m_rate.predict(es_df[fcols]).clip(0, 1)
-                    fold_wapes.append(wape(es_df["admit_rate"].values, preds))
+                    m_total, m_rate = train_bucket(train_df, es_df, fcols, best_total, params)
+                    # Eval on val window, not ES
+                    w = _eval_on_val_window(
+                        m_total, m_rate, base_df, bucket_data, bid, fold, fcols,
+                        target="rate",
+                    )
+                    fold_wapes.append(w)
                 except Exception:
                     return float("inf")
 
-            return float(np.mean(fold_wapes))
+            return float(np.nanmean(fold_wapes))
 
         study_r = optuna.create_study(direction="minimize",
                                        study_name=f"B_bucket{bid}_rate")

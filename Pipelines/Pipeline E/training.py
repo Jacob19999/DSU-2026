@@ -56,7 +56,15 @@ def largest_remainder_round(values: np.ndarray) -> np.ndarray:
     elif deficit < 0:
         idx = np.argsort(remainders)[:(-deficit)]
         floored[idx] -= 1
-    return np.maximum(floored, 0)
+    floored = np.maximum(floored, 0)
+    # Redistribute if clipping broke sum invariant (deficit < 0 can push to -1)
+    excess = floored.sum() - target_sum
+    if excess > 0:
+        candidates = np.where(floored > 0)[0]
+        if len(candidates) >= excess:
+            order = np.argsort(floored[candidates])
+            floored[candidates[order[:excess]]] -= 1
+    return floored
 
 
 # ══════════════════════════════════════════════════════════════════════════════

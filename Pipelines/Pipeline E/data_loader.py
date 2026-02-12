@@ -37,6 +37,12 @@ def load_data() -> pd.DataFrame:
         f"({n_sites}×{n_dates}×{n_blocks})"
     )
 
+    # ── Date contiguity per (site, block) ─────────────────────────────────
+    # shift() assumes contiguous daily grid; gaps would break lag/rolling features
+    for (site, blk), grp in df.groupby(["site", "block"]):
+        diffs = grp["date"].diff().dropna()
+        assert (diffs == pd.Timedelta(days=1)).all(), f"Date gap in {site}/{blk}"
+
     # ── Target integrity ─────────────────────────────────────────────────
     assert df["total_enc"].notna().all(), "NaN in total_enc"
     assert df["admitted_enc"].notna().all(), "NaN in admitted_enc"

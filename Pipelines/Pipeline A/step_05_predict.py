@@ -42,6 +42,11 @@ def generate_final_forecast(
             with open(p) as f:
                 params_a2 = json.load(f)
             print(f"  Loaded tuned A2 params from {p}")
+    if covid_policy == "downweight":
+        pol_path = cfg.MODEL_DIR / "best_covid_policy.txt"
+        if pol_path.exists():
+            covid_policy = pol_path.read_text().strip()
+            print(f"  Loaded tuned covid_policy from {pol_path}")
 
     p_a1 = (params_a1 or cfg.LGBM_DEFAULT_A1).copy()
     p_a2 = (params_a2 or cfg.LGBM_DEFAULT_A2).copy()
@@ -56,7 +61,7 @@ def generate_final_forecast(
 
     df_fold = compute_fold_aggregate_encodings(df, train_mask)
     feature_cols = get_feature_columns(df_fold)
-    cat_features = ["site_enc", "block", "site_x_dow", "site_x_month"]
+    cat_features = [c for c in ["site_enc", "block", "site_x_dow", "site_x_month"] if c in feature_cols]
 
     # Split training into fit + early-stopping hold-out
     train_fit = df_fold.loc[train_mask & (df["date"] < es_start)].copy()

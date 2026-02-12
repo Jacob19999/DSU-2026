@@ -100,9 +100,19 @@ def allocate_daily_to_blocks(
 
         block_admitted_raw = daily_admitted * shares_admitted
         block_admitted_int = largest_remainder_round(block_admitted_raw)
+        target_admitted = int(round(daily_admitted))
 
-        # Enforce admitted <= total
+        # Enforce admitted <= total; clamp can reduce sum — re-allocate deficit to blocks with room
         block_admitted_int = np.minimum(block_admitted_int, block_total_int)
+        deficit = target_admitted - block_admitted_int.sum()
+        while deficit > 0:
+            room = block_total_int - block_admitted_int
+            candidates = np.where(room > 0)[0]
+            if len(candidates) == 0:
+                break
+            i = candidates[np.argmax(room[candidates])]
+            block_admitted_int[i] += 1
+            deficit -= 1
 
         for b in cfg.BLOCKS:
             results.append({
@@ -217,6 +227,12 @@ def generate_final_forecast(
     )
     from step_03_feature_eng_shares import get_share_feature_columns
 
+    # Load tuned covid_policy from disk when using default
+    if covid_policy == "downweight":
+        pol_path = cfg.MODEL_DIR / "best_covid_policy.txt"
+        if pol_path.exists():
+            covid_policy = pol_path.read_text().strip()
+
     # Try loading tuned params from disk
     if params_total is None:
         p = cfg.MODEL_DIR / "best_params_daily_total.json"
@@ -254,7 +270,10 @@ def generate_final_forecast(
     pred_data = df_fold.loc[pred_mask].copy()
 
     if covid_policy == "exclude":
-        train_fit = train_fit[~train_fit["is_covid_era"]].copy()
+        if "is_covid_era" in train_fit.columns:
+            train_fit = train_fit[~train_fit["is_covid_era"].astype(bool)].copy()
+        else:
+            print("  [WARN] covid_policy='exclude' but 'is_covid_era' not in columns; skipping exclusion.")
 
     longest_lag = f"lag_{cfg.LAG_DAYS_DAILY[-1]}"
     if longest_lag in train_fit.columns:
@@ -302,24 +321,35 @@ def generate_final_forecast(
         share_train = share_train.dropna(subset=[longest_share_lag])
 
     if st == "softmax_gbdt":
-        share_model = lgb.LGBMClassifier(**p_share)
-        share_model.fit(
+        share_model_total = lgb.LGBMClassifier(**p_share)
+        share_model_total.fit(
             share_train[share_feature_cols], share_train["block"],
             sample_weight=share_train["total_enc"].clip(lower=1).values.astype(float),
             categorical_feature=cat_share,
             callbacks=[lgb.log_evaluation(0)],
         )
-        pred_probs = share_model.predict_proba(share_pred[share_feature_cols])
-        pred_probs = pred_probs / pred_probs.sum(axis=1, keepdims=True)
+        pred_probs_total = share_model_total.predict_proba(share_pred[share_feature_cols])
+        pred_probs_total = pred_probs_total / pred_probs_total.sum(axis=1, keepdims=True)
+
+        share_model_admitted = lgb.LGBMClassifier(**p_share)
+        share_model_admitted.fit(
+            share_train[share_feature_cols], share_train["block"],
+            sample_weight=share_train["admitted_enc"].clip(lower=1).values.astype(float),
+            categorical_feature=cat_share,
+            callbacks=[lgb.log_evaluation(0)],
+        )
+        pred_probs_admitted = share_model_admitted.predict_proba(share_pred[share_feature_cols])
+        pred_probs_admitted = pred_probs_admitted / pred_probs_admitted.sum(axis=1, keepdims=True)
     else:
         # Climatology
         from step_05_train_shares import _predict_climatology
-        pred_probs = _predict_climatology(share_train, share_pred)
+        pred_probs_total = _predict_climatology(share_train, share_pred)
+        pred_probs_admitted = pred_probs_total
 
     share_preds_out = share_pred[["site", "date", "block"]].copy()
     for b in cfg.BLOCKS:
-        share_preds_out[f"pred_share_total_b{b}"] = pred_probs[:, b]
-        share_preds_out[f"pred_share_admitted_b{b}"] = pred_probs[:, b]
+        share_preds_out[f"pred_share_total_b{b}"] = pred_probs_total[:, b]
+        share_preds_out[f"pred_share_admitted_b{b}"] = pred_probs_admitted[:, b]
 
     # ── Allocate ─────────────────────────────────────────────────────────
     block_preds = allocate_daily_to_blocks(daily_preds, share_preds_out)
@@ -340,6 +370,9 @@ def generate_final_forecast(
     # Save final models
     model_total.booster_.save_model(str(cfg.MODEL_DIR / "final_model_c1_total.txt"))
     model_rate.booster_.save_model(str(cfg.MODEL_DIR / "final_model_c1_rate.txt"))
+    if st == "softmax_gbdt":
+        share_model_total.booster_.save_model(str(cfg.MODEL_DIR / "final_model_share_total.txt"))
+        share_model_admitted.booster_.save_model(str(cfg.MODEL_DIR / "final_model_share_admitted.txt"))
 
     return submission
 

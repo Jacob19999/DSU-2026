@@ -84,7 +84,7 @@ def _score_fold(truth: pd.DataFrame, fold: dict) -> dict | None:
     merged["_days_ahead"] = (merged["_date"] - train_end).dt.days
     merged["_bucket"] = pd.cut(
         merged["_days_ahead"],
-        bins=[0, 15, 30, 61],
+        bins=[0, 15, 30, 62],
         labels=[1, 2, 3],
     ).astype("Int64")
 
