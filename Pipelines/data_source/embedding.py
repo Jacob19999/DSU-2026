@@ -226,6 +226,37 @@ def _save_cached_embeddings(
         logger.warning("Failed to write embedding cache: %s", exc)
 
 
+def _reconcile_cached_dim(
+    reason_df: pd.DataFrame,
+    config: EmbeddingConfig,
+) -> pd.DataFrame:
+    """Re-reduce cached embeddings when their dim exceeds ``config.dim``.
+
+    The cache stores vectors at whatever dim was used when they were first
+    computed.  If the caller now requests a smaller dim we PCA-reduce and
+    re-normalize so downstream code always sees the expected width.
+    """
+    emb_cols = [c for c in reason_df.columns if c.startswith("reason_emb_")]
+    cached_dim = len(emb_cols)
+
+    if cached_dim <= config.dim:
+        return reason_df
+
+    logger.info(
+        "Cached embeddings have dim=%d but config.dim=%d — reducing via PCA",
+        cached_dim, config.dim,
+    )
+    vecs = reason_df[emb_cols].values
+    vecs = _reduce_dim(vecs, target_dim=config.dim, seed=config.seed)
+    if config.normalize:
+        vecs = _l2_normalize(vecs)
+
+    new_cols = [f"reason_emb_{i}" for i in range(vecs.shape[1])]
+    out = reason_df[["reason_visit_name"]].copy()
+    out[new_cols] = vecs
+    return out
+
+
 def _get_reason_embeddings(
     unique_reasons: List[str],
     config: EmbeddingConfig,
@@ -241,7 +272,9 @@ def _get_reason_embeddings(
         needed = [r for r in unique_reasons if r not in cached_reasons]
         if not needed:
             # Cache covers all reasons — filter to what we need
-            return cached[cached["reason_visit_name"].isin(set(unique_reasons))].copy()
+            result = cached[cached["reason_visit_name"].isin(set(unique_reasons))].copy()
+            result = _reconcile_cached_dim(result, config)
+            return result
         else:
             logger.info(
                 "%d new reasons not in cache -- recomputing all embeddings", len(needed),
