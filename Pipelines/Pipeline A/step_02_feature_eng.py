@@ -195,6 +195,41 @@ def _add_case_mix_shares(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+_EMB_SUMMARY_COLS = ["reason_emb_entropy", "reason_emb_norm", "reason_emb_cluster"]
+_EMB_ROLLING_COLS = ["reason_emb_entropy", "reason_emb_norm"]  # cluster is categorical → no rolling
+_EMB_ROLLING_WINDOWS = [7, 14, 28]
+
+
+def _add_lagged_embedding_summaries(df: pd.DataFrame) -> pd.DataFrame:
+    """Lagged embedding summaries — safe proxies for contemporaneous reason_emb_*.
+
+    Uses the same lag set as Pipeline A (cfg.LAG_DAYS, all >= MAX_HORIZON).
+    Rolling means use shift(MAX_HORIZON) then a window, matching _add_rolling_features.
+    See master_strategy §10.4 for rationale.
+    """
+    present = [c for c in _EMB_SUMMARY_COLS if c in df.columns]
+    if not present:
+        return df
+
+    for (_site, _blk), grp in df.groupby(["site", "block"]):
+        idx = grp.index
+        for col in present:
+            series = grp[col]
+            # Point lags
+            for lag in cfg.LAG_DAYS:
+                df.loc[idx, f"lag_{col.replace('reason_emb_', 'emb_')}_{lag}"] = (
+                    series.shift(lag).values
+                )
+            # Rolling means (entropy & norm only — cluster is categorical)
+            if col in _EMB_ROLLING_COLS:
+                shifted = series.shift(cfg.ROLLING_SHIFT)
+                for w in _EMB_ROLLING_WINDOWS:
+                    df.loc[idx, f"roll_{col.replace('reason_emb_', 'emb_')}_{w}"] = (
+                        shifted.rolling(w, min_periods=1).mean().values
+                    )
+    return df
+
+
 def _add_interaction_features(df: pd.DataFrame) -> pd.DataFrame:
     """Interaction terms for LightGBM splits."""
     is_hol = df["is_us_holiday"] if "is_us_holiday" in df.columns else 0
@@ -270,6 +305,9 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     print("  [2h] Case-mix shares ...")
     df = _add_case_mix_shares(df)
 
+    print("  [2h2] Lagged embedding summaries ...")
+    df = _add_lagged_embedding_summaries(df)
+
     print("  [2i] Site encoding ...")
     df = _encode_site(df)
 
@@ -330,6 +368,9 @@ def get_feature_columns(df: pd.DataFrame) -> list[str]:
         c for c in df.columns
         if c.startswith("share_reason_") and not c.endswith("_lag63")
     )
+    # Raw reason embeddings — contemporaneous (target-date leakage, §10).
+    # Lagged summaries (lag_emb_*, roll_emb_*) are kept as features.
+    exclude.update(c for c in df.columns if c.startswith("reason_emb_"))
     # Safety: exclude any non-numeric columns (object, datetime, timedelta)
     non_numeric = set(
         df.select_dtypes(include=["object", "datetime64", "datetimetz", "timedelta64"]).columns

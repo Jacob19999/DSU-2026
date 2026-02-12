@@ -161,6 +161,7 @@ This produces the **canonical truth table** at the same grain as the required pr
 | **School Calendar** | `school_in_session` (binary), `days_until_school_start`, `days_since_school_start` | **NEW**: Proxies from Sioux Falls/Fargo school districts. Explains late-August pediatric shifts. |
 | **External** | `event_intensity`, `event_count`, weather (Tmin, Tmax, Precip) | **UPDATED**: Use NOAA data for KFSD (Sioux Falls) and KFAR (Fargo). |
 | **Case-Mix Shares** | `cmix_*_share` (top 5-8 categories) | From `case_mix.py`; climatology-filled for future |
+| **Lagged Embedding Summaries** | `lag_emb_entropy_{k}`, `lag_emb_norm_{k}`, `roll_emb_entropy_{w}`, `roll_emb_norm_{w}` | **NEW (§10)**: Lagged visit-reason summaries. Raw `reason_emb_*` features are EXCLUDED (target leakage). |
 | **Aggregate Features** | Mean `total_enc` by (Site, Month, Block), by (DOW) — lagged to avoid leakage | M5 trick: hierarchical mean encodings |
 | **Trend** | `days_since_epoch` (days since 2018-01-01), `year_frac` (continuous year) | GBDT cannot extrapolate; explicit trend captures secular volume growth (aging population, facility expansion). Pipeline D has this; Pipeline A must too. |
 | **Interactions** | `is_holiday × Block`, `is_weekend × Block`, **`Site × DOW`**, **`Site × Month`** | **CRITICAL**: Site-specific rhythms (e.g., Level I Trauma center B vs. others) must be captured via interactions. |
@@ -215,6 +216,9 @@ This produces the **canonical truth table** at the same grain as the required pr
 - Pipeline A treats all future rows identically and uses only lags ≥63 (safe for worst-case horizon)
 - Pipeline B explicitly accounts for horizon distance — **short-horizon predictions get access to recent lags that Pipeline A throws away**
 - This is the biggest single source of potential improvement: for day-1 predictions, lag_1 (yesterday's actual) is far more informative than lag_63
+
+**⚠️ Reason-Embedding Leakage (see §10):**
+Raw `reason_emb_*` features MUST be excluded from Pipeline B's feature set — they are zero for all Sep-Oct 2025 rows and cause ~84% undercount. Replace with lagged embedding summaries (`lag_emb_entropy`, `lag_emb_norm`, `roll_emb_entropy`, `roll_emb_norm`) shifted by `(h + min_lag)` per bucket, matching the existing lag infrastructure.
 
 ---
 
@@ -489,6 +493,7 @@ The diversity across 5 pipelines is not just for ensemble gains — it serves as
 | Weather data unavailable (lat/lon unknown) | Model works without weather — calendar + lags account for seasonality; weather is marginal improvement |
 | Pipeline D or E underperforms | Drop from ensemble; retain A+B+C core which has highest expected value |
 | Stacking overfits on 4 folds | Fall back to simple weighted blend (Level 1) |
+| **Reason-embedding target leakage (§10)** | Raw `reason_emb_*` features are unavailable for future dates (all zeros). CV metrics appear good but final forecast underpredicts by ~84%. **Fix**: exclude raw embeddings, use lagged summaries instead. Affects Pipelines A & B. |
 
 **Minimum Viable Submission**: Pipelines A + C with simple weighted blend. This alone should beat the current XGBoost baseline significantly.
 
@@ -511,3 +516,109 @@ The diversity across 5 pipelines is not just for ensemble gains — it serves as
 | **Cumulative (estimated, post-leakage-fix)** | | **10-20% WAPE reduction over corrected baseline** | |
 
 *Note: The current baseline metrics are inflated by lag leakage. After fixing leakage, the true baseline WAPE will be significantly higher. The improvements above are measured against that corrected baseline. Absolute WAPE reduction vs. the current (leaky) numbers may appear smaller initially.*
+
+---
+
+## 10. Critical Finding: Reason-Embedding Target Leakage (2026-02-12)
+
+### 10.1 The Problem
+
+**Severity:** CRITICAL — causes ~84% undercount in final Sep-Oct 2025 predictions for affected pipelines.
+
+**Affected Pipelines:** A and B (the two GBDT-based pipelines that ingest all columns from `master_block_history`).  
+**Unaffected Pipelines:** C, D, E (do not use `reason_emb_*` features).
+
+**Root cause:** The Data Source layer generates **67 reason-embedding features** per `(site, date, block)` row:
+- `reason_emb_0` … `reason_emb_63` — 64-dim SapBERT/MiniLM embedding of visit reasons, aggregated by ED-encounter-weighted mean
+- `reason_emb_norm` — L2 norm of the embedding vector
+- `reason_emb_entropy` — Shannon entropy of the visit-reason distribution
+- `reason_emb_cluster` — k-means cluster assignment of the embedding
+
+These features encode **the actual composition of patient visits that occurred on the target date**. They are only computable after the visits happen. For Sep-Oct 2025 (the forecast horizon), no visits exist, so all 67 features are **zero-filled**.
+
+### 10.2 Why CV Metrics Were Misleading
+
+During 4-fold cross-validation, the validation periods (Jan-Aug 2025) have **real visits** in `master_block_history`. The embeddings for those dates are populated with actual values. The model sees real embeddings during both training and CV evaluation, producing excellent metrics:
+
+| Metric | Pipeline B CV (all 4 folds) |
+|--------|---------------------------|
+| Mean Total WAPE | 14.7% |
+| Mean Admitted WAPE | 27.9% |
+| Total R² | 0.87 |
+
+But for the **final Sep-Oct forecast**, all embeddings are zero. The model has never seen this all-zeros pattern during training (every historical date has some visits), so predictions collapse:
+
+| Pipeline | Site A Sep 2025 Daily Mean | vs. Actual Aug (131.6/day) |
+|----------|---------------------------|---------------------------|
+| **B** | **21.6** | **-83.6%** |
+| C (unaffected) | 130.6 | -0.8% |
+| D (unaffected) | 131.4 | -0.2% |
+
+### 10.3 Feature Importance Confirms Heavy Dependence
+
+Pipeline B Bucket 1 (total_enc model):
+- `reason_emb_*` features account for **78.7% of total split importance**
+- Top feature: `reason_emb_entropy` (5,868 splits) — 2.8× the next non-embedding feature
+- All top 22 features are embedding-derived
+
+Pipeline A:
+- `reason_emb_entropy` is the **#3 feature** (mean importance 1,836)
+- `reason_emb_norm` is **#4** (526)
+- Combined: ~25% of total importance
+
+The models learned to use these features as a high-signal proxy for volume (more visits → higher entropy/norm → higher prediction). When zeroed out at inference, the models extrapolate to a regime they were never trained on.
+
+### 10.4 Recommended Fix: Lagged Embedding Summary Features
+
+**Principle:** The visit-reason composition is temporally stable (week-over-week changes are small). Lagged embedding summaries — computed from dates that are known at prediction time — preserve the signal without leakage.
+
+**Implementation (for Pipelines A and B):**
+
+**Step 1 — Exclude current-date embedding features from the model:**
+Add `reason_emb_*` columns (all 67) to each pipeline's `_EXCLUDE_COLS` set. These must never appear as model inputs because they are unavailable at inference.
+
+**Step 2 — Create lagged embedding summary features:**
+In each pipeline's feature engineering (e.g., `build_bucket_data` for Pipeline B, `build_features` for Pipeline A), compute lagged versions of the 3 scalar summaries using the same lag/shift logic already used for `lag_total`:
+
+| New Feature | Computation | Rationale |
+|-------------|-------------|-----------|
+| `lag_emb_entropy_{k}` | `reason_emb_entropy.shift(h + k)` | Visit diversity from k days before as-of date |
+| `lag_emb_norm_{k}` | `reason_emb_norm.shift(h + k)` | Embedding magnitude (volume proxy) |
+| `lag_emb_cluster_{k}` | `reason_emb_cluster.shift(h + k)` | Visit-profile cluster |
+| `roll_emb_entropy_{w}` | Rolling mean of shifted entropy over w-day window | Smoothed recent visit diversity |
+| `roll_emb_norm_{w}` | Rolling mean of shifted norm over w-day window | Smoothed recent volume proxy |
+
+Use the **same lag set per bucket** as `lag_total`:
+- Pipeline B Bucket 1: lags `[16, 21, 28, 56, 91, 182, 364]` → 7 × 2 scalar lags + rolling = ~21 new features
+- Pipeline B Bucket 2: lags `[31, 35, 42, 56, 91, 182, 364]`
+- Pipeline B Bucket 3: lags `[63, 70, 77, 91, 182, 364]`
+- Pipeline A: lags `[63, 70, 77, 91, 182, 364]` (same minimum shift as existing lag features)
+
+**Why only the 3 summaries, not all 64 dimensions?**
+- `reason_emb_entropy` + `reason_emb_norm` account for ~70% of the embedding feature importance — they are the key scalars
+- Lagging all 64 dims × 7 lags = 448 features, which causes curse-of-dimensionality for LightGBM with ~40K training rows
+- The 3-summary approach adds ~21 features (manageable) and captures the majority of the signal
+- If more granularity is needed later, add rolling-mean of the top 5 embedding dimensions as an enhancement
+
+**Step 3 — Retrain and validate:**
+After implementing lagged summaries, re-run the full 4-fold CV to confirm:
+1. CV WAPE remains comparable (may improve slightly — lagged features are less noisy than same-date features)
+2. Final Sep-Oct predictions are now in the plausible range (~125-135 daily for Site A)
+3. No new leakage is introduced (verify: all lag shifts ≥ `min_lag` for the bucket/pipeline)
+
+### 10.5 Why Not Simply Drop Embeddings?
+
+Dropping all 67 embedding features is the safest quick fix, but suboptimal:
+- Pipeline B loses **78.7%** of its feature importance — the model must redistribute signal to weaker features (rolling means, calendar, weather)
+- The visit-reason composition IS genuinely predictive and changes slowly, so lagged versions carry real information
+- The 3-summary lag approach recovers the majority of the signal with zero leakage risk
+- If time-constrained: drop first (quick sanity restore), then add lagged summaries as enhancement
+
+### 10.6 Lessons & Prevention
+
+1. **Any feature derived from the target date's actual data is potential leakage** when used for future forecasting. This includes: visit counts, reason distributions, embeddings, case-mix shares.
+2. **CV metrics alone cannot detect this class of leakage** because CV validation dates have real data populated. Only comparing CV vs. final-forecast behavior reveals the mismatch.
+3. **Prevention rule**: Every feature in `master_block_history` must be tagged as either:
+   - **Static/deterministic** (calendar, weather forecast, events) — safe for any date
+   - **Lagged/historical** (computed from past data only) — safe if shifted correctly
+   - **Contemporaneous** (derived from same-date actuals) — **MUST be excluded or lagged**

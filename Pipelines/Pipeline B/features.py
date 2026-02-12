@@ -25,6 +25,12 @@ except ImportError:
 
 import config as cfg
 
+# ── Embedding summary config ─────────────────────────────────────────────────
+
+_EMB_SUMMARY_COLS = ["reason_emb_entropy", "reason_emb_norm", "reason_emb_cluster"]
+_EMB_ROLLING_COLS = ["reason_emb_entropy", "reason_emb_norm"]  # cluster is categorical
+_EMB_ROLLING_WINDOWS = [7, 14, 28]
+
 # ── Datetime helpers ─────────────────────────────────────────────────────────
 
 _EPOCH_D = np.datetime64("1970-01-01", "D")
@@ -191,6 +197,23 @@ def build_bucket_data(
                 expanded.loc[idx, f"roll_min_{w}"]  = roll.min().values
                 expanded.loc[idx, f"roll_max_{w}"]  = roll.max().values
 
+            # Lagged embedding summaries (§10.4) — same shift(h+k) logic
+            for emb_col in _EMB_SUMMARY_COLS:
+                if emb_col not in grp.columns:
+                    continue
+                s_emb = grp[emb_col]
+                short = emb_col.replace("reason_emb_", "emb_")
+                # Point lags
+                for k in lags:
+                    expanded.loc[idx, f"lag_{short}_{k}"] = s_emb.shift(h + k).values
+                # Rolling means (entropy & norm only)
+                if emb_col in _EMB_ROLLING_COLS:
+                    shifted_emb = s_emb.shift(h + min_lag)
+                    for w in _EMB_ROLLING_WINDOWS:
+                        expanded.loc[idx, f"roll_{short}_{w}"] = (
+                            shifted_emb.rolling(w, min_periods=1).mean().values
+                        )
+
         # Optionally filter to target dates (prediction efficiency)
         if target_dates is not None:
             expanded = expanded[expanded["date"].isin(target_dates)]
@@ -273,6 +296,9 @@ def get_feature_columns(df: pd.DataFrame) -> list[str]:
     """Return columns suitable as LightGBM features."""
     exclude = set(_EXCLUDE_COLS)
     exclude.update(c for c in df.columns if c.startswith("count_reason_"))
+    # Raw reason embeddings — contemporaneous (target-date leakage, §10).
+    # Lagged summaries (lag_emb_*, roll_emb_*) are kept as features.
+    exclude.update(c for c in df.columns if c.startswith("reason_emb_"))
     return sorted(c for c in df.columns if c not in exclude)
 
 
