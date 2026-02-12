@@ -23,11 +23,10 @@ When ``use_reason_embeddings=False`` (default) none of this code runs and
 
 from __future__ import annotations
 
-import hashlib
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -93,7 +92,7 @@ def _try_sentence_transformer(model_name: str, texts: List[str]) -> Optional[np.
     try:
         from sentence_transformers import SentenceTransformer  # type: ignore[import-untyped]
     except ImportError:
-        logger.info("sentence-transformers not installed — skipping %s", model_name)
+        logger.info("sentence-transformers not installed -- skipping %s", model_name)
         return None
 
     try:
@@ -107,7 +106,7 @@ def _try_sentence_transformer(model_name: str, texts: List[str]) -> Optional[np.
             normalize_embeddings=True,   # L2-norm inside the model
         )
         logger.info(
-            "Encoded %d reasons → shape %s with %s",
+            "Encoded %d reasons -> shape %s with %s",
             len(texts), vecs.shape, model_name,
         )
         return np.asarray(vecs, dtype=np.float32)
@@ -152,7 +151,7 @@ def _reduce_dim(vecs: np.ndarray, target_dim: int, seed: int) -> np.ndarray:
         return vecs
     from sklearn.decomposition import PCA
 
-    logger.info("Reducing embedding dim %d → %d via PCA", vecs.shape[1], target_dim)
+    logger.info("Reducing embedding dim %d -> %d via PCA", vecs.shape[1], target_dim)
     pca = PCA(n_components=target_dim, random_state=seed)
     reduced = pca.fit_transform(vecs)
     return np.asarray(reduced, dtype=np.float32)
@@ -197,12 +196,6 @@ def _embed_reasons(
 # ══════════════════════════════════════════════════════════════════════════════
 #  Reason-level caching
 # ══════════════════════════════════════════════════════════════════════════════
-
-def _cache_key(reasons: List[str], config: EmbeddingConfig) -> str:
-    """Deterministic hash for a set of reasons + config combo."""
-    blob = "|".join(sorted(reasons)) + f"|dim={config.dim}|norm={config.normalize}"
-    return hashlib.sha256(blob.encode()).hexdigest()[:16]
-
 
 def _load_cached_embeddings(
     config: EmbeddingConfig,
@@ -251,7 +244,7 @@ def _get_reason_embeddings(
             return cached[cached["reason_visit_name"].isin(set(unique_reasons))].copy()
         else:
             logger.info(
-                "%d new reasons not in cache — recomputing all embeddings", len(needed),
+                "%d new reasons not in cache -- recomputing all embeddings", len(needed),
             )
 
     # Compute from scratch
@@ -282,6 +275,12 @@ def _weighted_mean_pool(
 
     Formula:  e_block = sum(count_r * e_r) / sum(count_r)
     where count_r = ed_enc for that reason in that block.
+
+    The pre-normalization norm is stored in ``_raw_norm`` so that
+    ``_add_block_norm`` can expose it as a feature *before* we
+    L2-normalize the final block vectors.  (A weighted mean of unit
+    vectors has ||e|| < 1 when the mix is dispersed, and ||e|| ~ 1 when
+    dominated by one reason — that signal is lost after re-normalization.)
     """
     emb_cols = [c for c in reason_emb_df.columns if c.startswith("reason_emb_")]
     dim = len(emb_cols)
@@ -317,7 +316,16 @@ def _weighted_mean_pool(
     # Drop working columns
     block_emb = block_emb.drop(columns=w_cols + ["ed_enc"])
 
-    # Re-normalize block-level vectors
+    # Capture pre-normalization norm (concentration of reason mix).
+    # Weighted mean of L2-unit vectors: ||e_block|| in (0, 1].
+    #   ~1  → block dominated by one reason (or very similar reasons)
+    #   <1  → block has a dispersed, heterogeneous reason mix
+    block_emb["_raw_norm"] = np.linalg.norm(
+        block_emb[emb_cols].values, axis=1,
+    )
+
+    # Re-normalize block-level vectors so that cosine similarity between
+    # any two block vectors equals their dot product (strategy doc §3).
     if config.normalize:
         arr = block_emb[emb_cols].values
         block_emb[emb_cols] = _l2_normalize(arr)
@@ -330,10 +338,23 @@ def _weighted_mean_pool(
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _add_block_norm(block_df: pd.DataFrame, emb_cols: List[str]) -> pd.DataFrame:
-    """Add ||e_block||₂ as a feature."""
-    block_df["reason_emb_norm"] = np.linalg.norm(
-        block_df[emb_cols].values, axis=1,
-    )
+    """Add pre-normalization ||e_block||₂ as a feature.
+
+    This is the norm of the weighted-mean vector *before* L2 re-normalization.
+    It lives in (0, 1] for blocks with visits and captures how concentrated
+    the reason mix is:
+      ~1  → dominated by one reason (or very similar reasons)
+      <1  → dispersed / heterogeneous reason mix
+    """
+    if "_raw_norm" in block_df.columns:
+        # Use the pre-normalization norm saved by _weighted_mean_pool
+        block_df["reason_emb_norm"] = block_df["_raw_norm"].fillna(0.0)
+        block_df = block_df.drop(columns=["_raw_norm"])
+    else:
+        # Fallback: compute from current (possibly re-normalized) vectors
+        block_df["reason_emb_norm"] = np.linalg.norm(
+            block_df[emb_cols].values, axis=1,
+        )
     return block_df
 
 
@@ -462,12 +483,12 @@ def add_embedding_features(
 
     # ── 1. Unique reasons ─────────────────────────────────────────────────
     if "reason_visit_name" not in visits.columns:
-        logger.warning("visits DataFrame missing 'reason_visit_name' — skipping embeddings")
+        logger.warning("visits DataFrame missing 'reason_visit_name' -- skipping embeddings")
         return block_df
 
     unique_reasons = sorted(visits["reason_visit_name"].dropna().unique().tolist())
     if not unique_reasons:
-        logger.warning("No non-null reason_visit_name values — skipping embeddings")
+        logger.warning("No non-null reason_visit_name values -- skipping embeddings")
         return block_df
 
     logger.info("Embedding %d unique REASON_VISIT_NAME values (dim=%d)", len(unique_reasons), cfg.dim)
@@ -475,7 +496,7 @@ def add_embedding_features(
     # ── 2. Embed (with caching) ──────────────────────────────────────────
     reason_emb_df = _get_reason_embeddings(unique_reasons, cfg)
     emb_cols = [c for c in reason_emb_df.columns if c.startswith("reason_emb_")]
-    logger.info("Reason embedding matrix: %d reasons × %d dims", len(reason_emb_df), len(emb_cols))
+    logger.info("Reason embedding matrix: %d reasons x %d dims", len(reason_emb_df), len(emb_cols))
 
     # ── 3. Weighted mean pooling to (site, date, block) ──────────────────
     block_emb, emb_cols = _weighted_mean_pool(visits, reason_emb_df, block_df, cfg)
@@ -490,6 +511,8 @@ def add_embedding_features(
     # ── 5. Summary statistics ────────────────────────────────────────────
     if cfg.add_norm:
         block_df = _add_block_norm(block_df, emb_cols)
+    elif "_raw_norm" in block_df.columns:
+        block_df = block_df.drop(columns=["_raw_norm"])
 
     if cfg.add_entropy:
         block_df = _add_reason_entropy(visits, block_df)

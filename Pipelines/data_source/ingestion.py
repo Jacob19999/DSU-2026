@@ -119,7 +119,7 @@ def run_data_ingestion(
 
     # 5. Optional: embedding features derived from reason mix
     if getattr(config, "use_reason_embeddings", False):
-        logger.info("Adding reason-embedding features (SapBERT → MiniLM → TF-IDF+SVD).")
+        logger.info("Adding reason-embedding features (SapBERT -> MiniLM -> TF-IDF+SVD).")
         embed_cfg = EmbeddingConfig(cache_dir=config.external_cache_dir)
         master = add_embedding_features(
             block_df=master,
@@ -145,7 +145,7 @@ def run_data_ingestion(
     master = master.sort_values(["site", "block", "date"]).reset_index(drop=True)
 
     logger.info(
-        "Final master_block_history shape: %d rows × %d columns",
+        "Final master_block_history shape: %d rows x %d columns",
         len(master),
         master.shape[1],
     )
