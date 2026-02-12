@@ -1,14 +1,14 @@
 {
   "n_pipelines": 5,
   "wapes": {
-    "A": 0.2822404918613365,
-    "B": 0.24757975941091792,
-    "C": 0.2919657509434502,
+    "A": 0.2820066442933157,
+    "B": 0.28079728885121014,
+    "C": 0.2923657992500144,
     "D": 0.38882794071214055,
-    "E": 0.23977503532774103
+    "E": 0.2753515582143979
   },
-  "mean_wape": 0.29007779565111724,
-  "std_wape": 0.053203439054024755,
-  "cv": 0.18341093269342706,
-  "interpretation": "DIVERGENT -- pipelines capture different signals. Strong ensemble gains expected."
+  "mean_wape": 0.30386984626421576,
+  "std_wape": 0.04283422969826039,
+  "cv": 0.1409624226453055,
+  "interpretation": "PARTIAL CONVERGENCE -- some diversity remains. Ensemble will help; investigate outlier pipelines."
 }
