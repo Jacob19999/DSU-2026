@@ -73,9 +73,9 @@ This matches the repo’s stated intent (see `Strategies/council/master_strategy
 For both `ED Enc` and `ED Enc Admitted`, computed at submission grain:
 
 - **RMSE**:
-\[
-\sqrt{\frac{1}{n}\sum (y-\hat y)^2}
-\]
+  \[
+  \sqrt{\frac{1}{n}\sum (y-\hat y)^2}
+  \]
 - **MAE**
 - **R²** (coefficient of determination)
 - **WAPE** (for total too)
@@ -101,9 +101,10 @@ Evaluator loads:
 You provide a callable that, given a fold definition and raw history, returns a submission-like dataframe. That’s the cleanest way to avoid accidental leakage and to standardize training cutoffs.
 
 **Compatibility with Data Source:** Mode B passes raw df_hourly directly. If your pipeline depends on the unified master_block_history.parquet from the Data Source step (see Strategies/Data/data_source.md), your predict_fold callable should either:
-1. Run 
-un_data_ingestion() internally on the provided df_hourly slice, or
-2. Accept the pre-built master dataset and filter to 	rain_end itself.
+
+1. Run
+   un_data_ingestion() internally on the provided df_hourly slice, or
+2. Accept the pre-built master dataset and filter to rain_end itself.
 
 **Recommended default:** Use **Mode A** (pre-generated CSVs) during development. Use Mode B only for final leakage-proof validation runs where you want end-to-end guarantees.
 
@@ -426,11 +427,11 @@ When all pipelines have been scored, compute the **coefficient of variation** of
 
 $$CV = \frac{\sigma(\text{pipeline WAPEs})}{\mu(\text{pipeline WAPEs})}$$
 
-| CV Range | Interpretation | Action |
-|----------|---------------|--------|
-| < 0.05 | **Converged** — dataset predictive ceiling reached | Focus on ensemble post-processing, not new pipelines |
-| 0.05 - 0.15 | **Partial convergence** — some diversity remains useful | Ensemble will help; investigate outlier pipelines |
-| > 0.15 | **Divergent** — pipelines capture different signals | Strong ensemble gains expected; keep all pipelines |
+| CV Range    | Interpretation                                          | Action                                               |
+| ----------- | ------------------------------------------------------- | ---------------------------------------------------- |
+| < 0.05      | **Converged** — dataset predictive ceiling reached      | Focus on ensemble post-processing, not new pipelines |
+| 0.05 - 0.15 | **Partial convergence** — some diversity remains useful | Ensemble will help; investigate outlier pipelines    |
+| > 0.15      | **Divergent** — pipelines capture different signals     | Strong ensemble gains expected; keep all pipelines   |
 
 Also compute pairwise prediction correlations between pipelines. If all pairs show `corr > 0.95`, the pipelines are making the same errors and ensemble gains will be marginal.
 
