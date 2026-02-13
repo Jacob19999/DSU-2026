@@ -163,6 +163,99 @@ def add_target_lag_features(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def add_target_encodings(df: pd.DataFrame) -> pd.DataFrame:
+    """Site-level target encodings — reliability anchor for noisy factor features.
+
+    Pipeline E's factor features are noisier for Site D (52.5% "other" share).
+    Target encoding gives the tree a reliable numeric baseline so it doesn't
+    over-rely on noisy factor features for Site D.
+
+    Same implementation as Pipeline A: shift by ROLLING_SHIFT (63 days).
+    ~8 new features.
+    """
+    for (_site, _blk), grp in df.groupby(["site", "block"]):
+        idx = grp.index
+
+        # 1–2. Site baseline volume (trailing 90-day mean, lagged)
+        for target_col in ["total_enc", "admitted_enc"]:
+            shifted = grp[target_col].shift(cfg.ROLLING_SHIFT)
+            df.loc[idx, f"te_site_mean_{target_col}"] = (
+                shifted.rolling(90, min_periods=30).mean().values
+            )
+
+        # 3–4. Site × Block baseline
+        for target_col, tag in [("total_enc", "total"), ("admitted_enc", "admitted")]:
+            shifted = grp[target_col].shift(cfg.ROLLING_SHIFT)
+            df.loc[idx, f"te_site_block_mean_{tag}"] = (
+                shifted.rolling(90, min_periods=30).mean().values
+            )
+
+        # 5. Site admit rate (trailing 90-day ratio, lagged)
+        shifted_total = grp["total_enc"].shift(cfg.ROLLING_SHIFT).rolling(90, min_periods=30).sum()
+        shifted_admitted = grp["admitted_enc"].shift(cfg.ROLLING_SHIFT).rolling(90, min_periods=30).sum()
+        df.loc[idx, "te_site_admit_rate"] = (
+            (shifted_admitted / shifted_total.clip(lower=1)).values
+        )
+
+    # 6. Site × DOW mean (trailing 90-day, lagged)
+    for (_site, _dow), grp in df.groupby(["site", "dow"]):
+        idx = grp.index
+        shifted = grp["total_enc"].shift(cfg.ROLLING_SHIFT)
+        df.loc[idx, "te_site_dow_mean"] = (
+            shifted.rolling(90, min_periods=30).mean().values
+        )
+
+    # 7–8. te_site_month_mean computed per fold (see compute_fold_target_encodings)
+    df["te_site_month_mean"] = np.nan
+    return df
+
+
+def compute_fold_target_encodings(
+    df: pd.DataFrame, train_mask: pd.Series
+) -> pd.DataFrame:
+    """Compute fold-specific site×month mean from TRAINING data only."""
+    df = df.copy()
+    train = df.loc[train_mask]
+    fallback = float(train["total_enc"].mean())
+    means = train.groupby(["site", "month"])["total_enc"].mean().to_dict()
+    keys = list(zip(df["site"], df["month"]))
+    df["te_site_month_mean"] = [means.get(k, fallback) for k in keys]
+    return df
+
+
+def add_cross_block_lag_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Cross-block lags: Block 0 ← lagged Block 3 (evening decay signal).
+
+    Block 0 (00–06 h) volume is driven by the tail of the previous evening's
+    Block 3 (18–24 h).  Standard per-block lags miss this causal dependency.
+    All lags >= MAX_HORIZON (63 d) to prevent future leakage.
+    """
+    for _site in df["site"].unique():
+        site_mask = df["site"] == _site
+
+        # Block 3 total_enc series (sorted by date via df order)
+        b3 = df.loc[site_mask & (df["block"] == 3)].sort_values("date")
+        b3_total = b3["total_enc"]
+
+        # Block 0 rows to enrich (same date grid as Block 3)
+        b0_idx = df.loc[site_mask & (df["block"] == 0)].sort_values("date").index
+
+        # Point lags: Block 3 total from k days ago
+        for lag in cfg.LAG_DAYS:
+            df.loc[b0_idx, f"xblock_b3_total_{lag}"] = (
+                b3_total.shift(lag).values
+            )
+
+        # Rolling mean of Block 3, shifted by ROLLING_SHIFT
+        b3_shifted = b3_total.shift(cfg.ROLLING_SHIFT)
+        for w in cfg.ROLLING_WINDOWS:
+            df.loc[b0_idx, f"xblock_b3_roll_mean_{w}"] = (
+                b3_shifted.rolling(w, min_periods=1).mean().values
+            )
+
+    return df
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 #  FOLD-SPECIFIC MEAN-TARGET ENCODINGS
 # ══════════════════════════════════════════════════════════════════════════════
@@ -251,9 +344,11 @@ def get_feature_columns(df: pd.DataFrame) -> list[str]:
 # ══════════════════════════════════════════════════════════════════════════════
 
 def add_all_base_features(df: pd.DataFrame) -> pd.DataFrame:
-    """Add static features + target lag features.  Called once on base_df."""
+    """Add static features + target lag features + cross-block lags + target encodings."""
     df = add_static_features(df)
     df = add_target_lag_features(df)
+    df = add_cross_block_lag_features(df)
+    df = add_target_encodings(df)
     return df
 
 

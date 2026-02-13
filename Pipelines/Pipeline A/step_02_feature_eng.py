@@ -85,6 +85,39 @@ def _add_rolling_features(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def _add_cross_block_lag_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Cross-block lags: Block 0 ← lagged Block 3 (evening decay signal).
+
+    Block 0 (00–06 h) volume is driven by the tail of the previous evening's
+    Block 3 (18–24 h).  Standard per-block lags miss this causal dependency.
+    All lags >= MAX_HORIZON (63 d) to prevent future leakage.
+    """
+    for _site in df["site"].unique():
+        site_mask = df["site"] == _site
+
+        # Block 3 total_enc series (sorted by date via df order)
+        b3 = df.loc[site_mask & (df["block"] == 3)].sort_values("date")
+        b3_total = b3["total_enc"]
+
+        # Block 0 rows to enrich (same date grid as Block 3)
+        b0_idx = df.loc[site_mask & (df["block"] == 0)].sort_values("date").index
+
+        # Point lags: Block 3 total from k days ago
+        for lag in cfg.LAG_DAYS:
+            df.loc[b0_idx, f"xblock_b3_total_{lag}"] = (
+                b3_total.shift(lag).values
+            )
+
+        # Rolling mean of Block 3, shifted by ROLLING_SHIFT
+        b3_shifted = b3_total.shift(cfg.ROLLING_SHIFT)
+        for w in cfg.ROLLING_WINDOWS:
+            df.loc[b0_idx, f"xblock_b3_roll_mean_{w}"] = (
+                b3_shifted.rolling(w, min_periods=1).mean().values
+            )
+
+    return df
+
+
 def _add_trend_deltas(df: pd.DataFrame) -> pd.DataFrame:
     """Short-term momentum and horizon-boundary deltas (M5 trick)."""
     df["delta_7_28"] = df["roll_mean_7"] - df["roll_mean_28"]
@@ -230,6 +263,73 @@ def _add_lagged_embedding_summaries(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def _add_target_encodings(df: pd.DataFrame) -> pd.DataFrame:
+    """Site-level target encodings — give trees a numeric site baseline.
+
+    Encodes the 17.4% vs 31.6% admit-rate gap and ~71 vs ~112 volume gap
+    directly as continuous features so GBDT can split on them without burning
+    depth on the site categorical.
+
+    All features use shift(ROLLING_SHIFT=63) → no leakage.
+    8 new features total.
+    """
+    for (_site, _blk), grp in df.groupby(["site", "block"]):
+        idx = grp.index
+
+        # 1–2. Site baseline volume (trailing 90-day mean, lagged)
+        for target_col in ["total_enc", "admitted_enc"]:
+            shifted = grp[target_col].shift(cfg.ROLLING_SHIFT)
+            df.loc[idx, f"te_site_mean_{target_col}"] = (
+                shifted.rolling(90, min_periods=30).mean().values
+            )
+
+        # 3–4. Site × Block baseline (per-group, so already site+block)
+        for target_col, tag in [("total_enc", "total"), ("admitted_enc", "admitted")]:
+            shifted = grp[target_col].shift(cfg.ROLLING_SHIFT)
+            df.loc[idx, f"te_site_block_mean_{tag}"] = (
+                shifted.rolling(90, min_periods=30).mean().values
+            )
+
+        # 5. Site admit rate (trailing 90-day ratio, lagged)
+        shifted_total = grp["total_enc"].shift(cfg.ROLLING_SHIFT).rolling(90, min_periods=30).sum()
+        shifted_admitted = grp["admitted_enc"].shift(cfg.ROLLING_SHIFT).rolling(90, min_periods=30).sum()
+        df.loc[idx, "te_site_admit_rate"] = (
+            (shifted_admitted / shifted_total.clip(lower=1)).values
+        )
+
+    # 6. Site × DOW mean (trailing 90-day, lagged) — captures Site D flat weekday/weekend
+    for (_site, _dow), grp in df.groupby(["site", "dow"]):
+        idx = grp.index
+        shifted = grp["total_enc"].shift(cfg.ROLLING_SHIFT)
+        df.loc[idx, "te_site_dow_mean"] = (
+            shifted.rolling(90, min_periods=30).mean().values
+        )
+
+    # 7–8. Site × Month mean — computed per fold (infrastructure function)
+    # The actual per-fold computation is done in compute_fold_target_encodings()
+    # called from step_03.  Here we just initialise the column.
+    df["te_site_month_mean"] = np.nan
+
+    return df
+
+
+def compute_fold_target_encodings(
+    df: pd.DataFrame, train_mask: pd.Series
+) -> pd.DataFrame:
+    """Compute fold-specific site×month mean encoding from TRAINING data only.
+
+    Called from step_03 alongside compute_fold_aggregate_encodings.
+    """
+    df = df.copy()
+    train = df.loc[train_mask]
+    fallback = float(train["total_enc"].mean())
+
+    means = train.groupby(["site", "month"])["total_enc"].mean().to_dict()
+    keys = list(zip(df["site"], df["month"]))
+    df["te_site_month_mean"] = [means.get(k, fallback) for k in keys]
+    return df
+
+
 def _add_interaction_features(df: pd.DataFrame) -> pd.DataFrame:
     """Interaction terms for LightGBM splits."""
     is_hol = df["is_us_holiday"] if "is_us_holiday" in df.columns else 0
@@ -284,6 +384,9 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     print("  [2b] Rolling features ...")
     df = _add_rolling_features(df)
 
+    print("  [2b2] Cross-block lag features (evening decay) ...")
+    df = _add_cross_block_lag_features(df)
+
     print("  [2c] Trend deltas ...")
     df = _add_trend_deltas(df)
 
@@ -310,6 +413,9 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
 
     print("  [2i] Site encoding ...")
     df = _encode_site(df)
+
+    print("  [2i2] Target encodings (Site D isolation) ...")
+    df = _add_target_encodings(df)
 
     print("  [2j] Interaction features ...")
     df = _add_interaction_features(df)

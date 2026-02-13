@@ -1225,19 +1225,200 @@ result = model.fit(maxiter=200)
 
 ---
 
-## Appendix C: Partial Pooling for Low-Volume Series
+## Site D Isolation Enhancement (master_strategy.md §11)
 
-For low-volume (site, block) combos (e.g., Site D Block 0 with ~3 encounters/day), the per-series GLM may be unstable. Consider partial pooling:
+Site D has a WAPE of ~0.47 across GBDT pipelines and **0.94 on Pipeline D** — near-random. The per-series GLM approach (16 separate models) is especially fragile for Site D because:
+- Site D Block 0 averages **1.24 admitted/block** with 29% zeros — the Poisson GLM fits a very low λ and can't model zero-inflation
+- Site D's 16 series have the least data AND the highest noise
+- Separate models can't borrow the seasonal/holiday patterns that are shared across all sites
 
-```python
-# Instead of 16 separate models, fit ONE model with site/block indicators:
-# y ~ fourier + trend + holidays + site_indicator + block_indicator + site:block
+Pipeline D is the **natural home for formal partial pooling** — unlike GBDTs (which fake it via categorical splits), GLMs can implement genuine mixed-effects models with principled shrinkage.
 
-# This shares the Fourier coefficients across all series (pooled)
-# while allowing site/block-specific intercepts (partially pooled)
+### Enhancement A: Mixed-Effects GLM (Replace Per-Series with Pooled)
 
-# Trade-off: Less flexible per-series seasonality, but more stable for low-volume series.
-# Test: Compare per-series vs. partial-pooling via 4-fold WAPE.
+**Replace the 16 separate Poisson GLMs** with a single mixed-effects model that shares fixed effects (Fourier, DOW, holidays, trend) across all series while allowing site×block-specific intercepts that are shrunk toward the population mean.
+
+#### Architecture Change
+
+**Before (current):** 16 independent GLMs, each fit on ~2,800 rows:
+```
+For each (site, block):
+    log(y) ~ Fourier(day_of_year) + DOW + is_holiday + trend + weather
 ```
 
-**Recommendation**: Start with per-series models (as specified in master strategy). If any (site, block) model shows WAPE > 2× the best, try partial pooling for that series only.
+**After (upgraded):** 1 mixed-effects GLM fit on all ~44,800 rows:
+```
+log(y) ~ Fourier(day_of_year) + DOW + is_holiday + trend + weather   [FIXED effects — shared]
+          + (1 | site)                                                 [RANDOM intercept per site]
+          + (1 | site:block)                                           [RANDOM intercept per site×block]
+```
+
+#### Why Mixed-Effects Fixes Site D
+
+The random effects `(1 | site)` and `(1 | site:block)` implement **empirical Bayes shrinkage**: each site×block intercept is a weighted average of:
+- Its own data (local MLE)
+- The population mean (global MLE)
+
+The weight depends on the **effective sample size and variance** of each group. Low-volume, high-variance groups (Site D Block 0) get pulled **strongly** toward the population mean. High-volume, low-variance groups (Site B Block 2) retain their local estimate. This is exactly the behavior we need — Site D borrows the seasonal shape from the full population while keeping its own volume level.
+
+#### Implementation (`training.py`)
+
+```python
+import statsmodels.formula.api as smf
+import statsmodels.api as sm
+import numpy as np
+
+def train_mixed_effects_model(train_df, target_col="total_enc"):
+    """
+    Fit a single mixed-effects Poisson GLM across all sites and blocks.
+    
+    Fixed effects: Fourier terms, DOW dummies, holiday indicators, trend, weather
+    Random effects: (1 | site) + (1 | site_block)
+    """
+    
+    # 1. Prepare the data
+    df = train_df.copy()
+    df["site_block"] = df["site"].astype(str) + "_" + df["block"].astype(str)  # 16 groups
+    df["log_offset"] = 0  # No offset for count model; could use log(population) if available
+    
+    # 2. Build formula
+    #    Fixed effects: all Fourier terms + DOW + holidays + trend + weather
+    fourier_cols = [c for c in df.columns if c.startswith("fourier_")]
+    dow_cols = [c for c in df.columns if c.startswith("dow_")]
+    
+    fixed_formula_parts = fourier_cols + dow_cols + [
+        "is_holiday",
+        "is_halloween",
+        "school_in_session",
+        "trend",  # days_since_epoch, normalized
+        "temp_min", "temp_max", "precip", "snowfall",
+    ]
+    fixed_formula = " + ".join(fixed_formula_parts)
+    formula = f"{target_col} ~ {fixed_formula}"
+    
+    # 3. Fit mixed-effects model with site_block as random effect
+    #    Using MixedLM (Gaussian approximation for Poisson via log-transformed target)
+    #    Alternative: Use Poisson GEE with exchangeable correlation
+    
+    # Option A: Log-transformed Gaussian mixed model (simpler, faster)
+    df[f"log_{target_col}"] = np.log1p(df[target_col])  # log(y + 1)
+    
+    model = smf.mixedlm(
+        formula=f"log_{target_col} ~ {fixed_formula}",
+        data=df,
+        groups=df["site"],           # Primary grouping: site
+        re_formula="1",              # Random intercept per site
+        vc_formula={                  # Variance component: site×block
+            "site_block": "0 + C(site_block)"
+        },
+    )
+    
+    result = model.fit(
+        method="lbfgs",
+        maxiter=500,
+        reml=True,  # REML estimation (better for small group counts)
+    )
+    
+    # Option B: Poisson GLMM via PQL (if statsmodels supports it)
+    # Or use pymer4 for the full R-style lme4 syntax:
+    #
+    # from pymer4.models import Lmer
+    # model = Lmer(f"{target_col} ~ {fixed_formula} + (1|site) + (1|site_block)",
+    #              data=df, family="poisson")
+    # result = model.fit()
+    
+    return result
+
+def predict_mixed_effects(model_result, pred_df):
+    """Generate predictions from the mixed-effects model."""
+    df = pred_df.copy()
+    df["site_block"] = df["site"].astype(str) + "_" + df["block"].astype(str)
+    
+    # Predict on log scale, then expm1
+    log_pred = model_result.predict(df)
+    pred = np.expm1(log_pred)  # Back to count scale
+    
+    return pred.clip(lower=0)
+```
+
+#### Shrinkage Behavior (What to Expect)
+
+| Site×Block | Volume | Expected Shrinkage | Behavior |
+|-----------|--------|-------------------|----------|
+| Site B Block 2 | ~54/block | Minimal — retains local estimate | Population adds little signal |
+| Site A Block 2 | ~49/block | Minimal | Similar to B |
+| Site C Block 0 | ~10/block | Moderate — ~30% toward population | Borrows some seasonal shape |
+| **Site D Block 0** | **~7/block** | **Strong — ~50-70% toward population** | Gets population's seasonal/DOW shape, keeps D's intercept |
+| **Site D Block 1** | **~17/block** | **Moderate — ~20-40% toward population** | Some borrowing |
+
+The exact shrinkage percentages depend on the estimated variance components (σ²_site, σ²_site_block, σ²_residual) — REML estimates these automatically.
+
+#### Configuration Changes (`config.py`)
+
+```python
+# --- REPLACE per-series model config with mixed-effects ---
+
+# Old: 16 separate models
+# GLM_FAMILY = "poisson"
+# GLM_ALPHA = 0.1
+
+# New: Single mixed-effects model
+MODEL_TYPE = "mixed_effects"    # "per_series" for fallback to old behavior
+MIXED_EFFECTS_METHOD = "lbfgs"  # Optimization method
+MIXED_EFFECTS_REML = True       # REML vs ML estimation
+MIXED_EFFECTS_MAXITER = 500
+
+# Admit rate model: Same structure, but with logistic/beta family
+ADMIT_MODEL_TYPE = "mixed_effects_logistic"  # Or keep per-series if stable enough
+```
+
+#### Eval Notes — Enhancement A
+- [ ] **Convergence**: Model must converge (check `result.converged`). If not, try `method="powell"` or increase `maxiter`
+- [ ] **Random effects**: Print estimated random effects per site×block. Site D Block 0 should have a negative intercept (lower than population mean). Verify the magnitude is reasonable (~log(7.5) ≈ 2.0 on log scale vs population ~log(25) ≈ 3.2)
+- [ ] **Shrinkage verification**: Compare mixed-effects predictions vs per-series predictions for Site D. Mixed-effects should be closer to population mean (higher for Block 0, potentially lower for peak blocks)
+- [ ] **Site D WAPE**: Must improve from the catastrophic 0.94 baseline. Target: < 0.60
+- [ ] **A/B/C stability**: WAPE for other sites should not degrade > 0.02
+- [ ] **Compare Options A/B**: Run both log-Gaussian mixed model and Poisson GEE; pick whichever has lower CV WAPE
+
+### Enhancement B: Admit-Rate Mixed-Effects
+
+The same mixed-effects approach applies to the admit-rate model:
+
+```python
+# Logit-transformed admit_rate with mixed effects
+df["logit_admit_rate"] = np.log(df["admit_rate"].clip(0.01, 0.99) / 
+                                 (1 - df["admit_rate"].clip(0.01, 0.99)))
+
+model = smf.mixedlm(
+    formula=f"logit_admit_rate ~ {fixed_formula}",
+    data=df,
+    groups=df["site"],
+    re_formula="1",
+    vc_formula={"site_block": "0 + C(site_block)"},
+)
+```
+
+This is critical because Site D's 17.4% admit rate is 14pp below A/C (~31%). The per-series logistic model gets this right but has high variance. The mixed-effects model shrinks Site D's admit-rate intercept toward the population (~27%), which may slightly bias it upward but dramatically reduces variance.
+
+### Enhancement C: Zero-Inflation Correction (Post-Hoc)
+
+After the mixed-effects model produces predictions for Site D:
+
+```python
+# Same zero-inflation correction as GBDT pipelines
+# corrected = pred_admitted_d * (1 - p_zero * ZERO_SHRINKAGE)
+# Applied to Site D Blocks 0, 1, 3 only
+```
+
+### Fallback: Per-Series Models
+
+If the mixed-effects model fails to converge or shows worse CV WAPE than per-series:
+1. Revert to 16 separate GLMs
+2. Apply **post-hoc shrinkage** for Site D only: `pred_D = α × pred_per_series_D + (1-α) × pred_population_D` with α tuned via CV
+3. This is a manual approximation of what the mixed-effects model does automatically
+
+---
+
+## Appendix C: Per-Series GLM Partial Pooling (Deprecated — see Enhancement A above)
+
+The original recommendation was to start with per-series models and add partial pooling only if WAPE > 2× the best. Given Pipeline D's catastrophic 0.94 WAPE on Site D, the mixed-effects approach in Enhancement A is now the **default**. Per-series models are retained as a fallback only.

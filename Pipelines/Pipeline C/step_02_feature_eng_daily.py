@@ -144,6 +144,40 @@ def _add_weather_features(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def _add_target_encodings(df: pd.DataFrame) -> pd.DataFrame:
+    """Site-level target encodings for the daily model.
+
+    At the daily level (no block dimension), noise is lower (~71/day vs ~7-26/block).
+    The residual correction is more reliable here than in Pipelines A/B/E.
+    """
+    for _site, grp in df.groupby("site"):
+        idx = grp.index
+
+        # 1–2. Site baseline volume (trailing 90-day daily mean, lagged)
+        for target_col in ["total_enc", "admitted_enc"]:
+            shifted = grp[target_col].shift(cfg.ROLLING_SHIFT_DAILY)
+            df.loc[idx, f"te_site_mean_{target_col}"] = (
+                shifted.rolling(90, min_periods=30).mean().values
+            )
+
+        # 3. Site admit rate (trailing 90-day, lagged)
+        shifted_total = grp["total_enc"].shift(cfg.ROLLING_SHIFT_DAILY).rolling(90, min_periods=30).sum()
+        shifted_admitted = grp["admitted_enc"].shift(cfg.ROLLING_SHIFT_DAILY).rolling(90, min_periods=30).sum()
+        df.loc[idx, "te_site_admit_rate"] = (
+            (shifted_admitted / shifted_total.clip(lower=1)).values
+        )
+
+    # 4. Site × DOW daily mean (trailing, lagged)
+    for (_site, _dow), grp in df.groupby(["site", "dow"]):
+        idx = grp.index
+        shifted = grp["total_enc"].shift(cfg.ROLLING_SHIFT_DAILY)
+        df.loc[idx, "te_site_dow_daily_mean"] = (
+            shifted.rolling(90, min_periods=30).mean().values
+        )
+
+    return df
+
+
 def _add_interaction_features(df: pd.DataFrame) -> pd.DataFrame:
     """Interaction terms — no block dimension for daily model."""
     is_hol = df.get("is_us_holiday", 0)
@@ -251,6 +285,9 @@ def engineer_daily_features(daily_df: pd.DataFrame) -> pd.DataFrame:
 
     print("  [2h] Weather features ...")
     df = _add_weather_features(df)
+
+    print("  [2h2] Target encodings (Site D isolation) ...")
+    df = _add_target_encodings(df)
 
     print("  [2i] Interaction features ...")
     df = _add_interaction_features(df)

@@ -169,6 +169,12 @@ def build_bucket_data(
     lags    = cfg.BUCKET_LAGS[bucket_id]
     min_lag = bucket["min_lag"]
 
+    # Pre-extract Block 3 series per site for cross-block features
+    _b3_total_by_site: dict[str, pd.Series] = {}
+    for _s in df["site"].unique():
+        b3 = df.loc[(df["site"] == _s) & (df["block"] == 3)].sort_values("date")
+        _b3_total_by_site[_s] = b3["total_enc"]
+
     frames: list[pd.DataFrame] = []
 
     for h in h_list:
@@ -214,6 +220,19 @@ def build_bucket_data(
                             shifted_emb.rolling(w, min_periods=1).mean().values
                         )
 
+            # ── Cross-block lags: Block 0 ← lagged Block 3 (evening decay) ──
+            if _blk == 0 and _site in _b3_total_by_site:
+                b3_t = _b3_total_by_site[_site]
+                for k in lags:
+                    expanded.loc[idx, f"xblock_b3_total_{k}"] = (
+                        b3_t.shift(h + k).values
+                    )
+                b3_shifted = b3_t.shift(h + min_lag)
+                for w in [7, 14, 28]:
+                    expanded.loc[idx, f"xblock_b3_roll_mean_{w}"] = (
+                        b3_shifted.rolling(w, min_periods=1).mean().values
+                    )
+
         # Optionally filter to target dates (prediction efficiency)
         if target_dates is not None:
             expanded = expanded[expanded["date"].isin(target_dates)]
@@ -235,6 +254,91 @@ def build_bucket_data(
         )
 
     return result
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  TARGET ENCODING — per-bucket min_lag for more current baselines (§11)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def add_target_encodings(
+    df: pd.DataFrame,
+    min_lag: int,
+) -> pd.DataFrame:
+    """Add site-level target-encoded features using bucket-specific lag.
+
+    Bucket 1 (min_lag=16) gets a 16-day-lagged baseline — more current than
+    Pipeline A's 63-day-lagged version.  For Site D where volumes are stable
+    (D/A ratio CV < 0.05), even the 16-day-lagged baseline is accurate.
+
+    Parameters
+    ----------
+    df      : Base DataFrame sorted by (site, block, date).
+    min_lag : Bucket-specific minimum lag (16 / 31 / 63).
+    """
+    for (_site, _blk), grp in df.groupby(["site", "block"]):
+        idx = grp.index
+
+        # 1–2. Site baseline volume (trailing 90-day mean, lagged by min_lag)
+        for target_col in ["total_enc", "admitted_enc"]:
+            shifted = grp[target_col].shift(min_lag)
+            df.loc[idx, f"te_site_mean_{target_col}"] = (
+                shifted.rolling(90, min_periods=30).mean().values
+            )
+
+        # 3–4. Site × Block baseline
+        for target_col, tag in [("total_enc", "total"), ("admitted_enc", "admitted")]:
+            shifted = grp[target_col].shift(min_lag)
+            df.loc[idx, f"te_site_block_mean_{tag}"] = (
+                shifted.rolling(90, min_periods=30).mean().values
+            )
+
+        # 5. Site admit rate (trailing 90-day ratio, lagged)
+        shifted_total = grp["total_enc"].shift(min_lag).rolling(90, min_periods=30).sum()
+        shifted_admitted = grp["admitted_enc"].shift(min_lag).rolling(90, min_periods=30).sum()
+        df.loc[idx, "te_site_admit_rate"] = (
+            (shifted_admitted / shifted_total.clip(lower=1)).values
+        )
+
+    # 6. Site × DOW mean (trailing 90-day, lagged by min_lag)
+    for (_site, _dow), grp in df.groupby(["site", "dow"]):
+        idx = grp.index
+        shifted = grp["total_enc"].shift(min_lag)
+        df.loc[idx, "te_site_dow_mean"] = (
+            shifted.rolling(90, min_periods=30).mean().values
+        )
+
+    return df
+
+
+def add_target_encodings_to_bucket(
+    expanded_df: pd.DataFrame,
+    base_df: pd.DataFrame,
+    bucket_id: int,
+) -> pd.DataFrame:
+    """Add target encodings to an expanded bucket dataset.
+
+    Computes TE on the base (non-expanded) df with bucket-specific min_lag,
+    then joins onto the expanded data by (site, block, date).
+    """
+    min_lag = cfg.BUCKETS[bucket_id]["min_lag"]
+    te_cols = [
+        "te_site_mean_total_enc", "te_site_mean_admitted_enc",
+        "te_site_block_mean_total", "te_site_block_mean_admitted",
+        "te_site_admit_rate", "te_site_dow_mean",
+    ]
+
+    # Compute on base df
+    base_te = add_target_encodings(base_df.copy(), min_lag)
+
+    # Merge onto expanded df by (site, block, date)
+    merge_cols = ["site", "block", "date"]
+    te_to_merge = base_te[merge_cols + te_cols].drop_duplicates(subset=merge_cols)
+    for col in te_cols:
+        if col in expanded_df.columns:
+            expanded_df = expanded_df.drop(columns=[col])
+    expanded_df = expanded_df.merge(te_to_merge, on=merge_cols, how="left")
+
+    return expanded_df
 
 
 # ══════════════════════════════════════════════════════════════════════════════

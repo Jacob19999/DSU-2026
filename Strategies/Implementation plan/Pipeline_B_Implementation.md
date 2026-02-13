@@ -423,6 +423,145 @@ Pipelines/pipeline_B/output/
 
 ---
 
+## Site D Isolation Enhancement (master_strategy.md §11)
+
+Site D has a WAPE of ~0.47 vs ~0.24 for A/B/C. The global bucket models already train on all sites, but Site D's gradient signal is drowned out by higher-volume sites. See §11.2 of master_strategy.md for the full diagnosis. The fix: **Target Encoding** (fix baseline) + **Hybrid-Residual** (fix tail error).
+
+### Enhancement A: Target Encoding Features (add to `features.py`)
+
+Add to feature engineering alongside existing features in Step 2. Each feature uses the **bucket's own `min_lag`** as the shift — same leakage-safety rules as existing lags/rolling stats.
+
+#### 2.11 Site-Level Target Encodings
+
+```python
+# --- Per (site, block) group, shifted by bucket_min_lag ---
+
+def build_target_encodings(group, target_col, min_lag):
+    """Build target-encoded site baseline features for one (site, block) group."""
+    shifted = group[target_col].shift(min_lag)
+    te = {}
+    te[f"te_site_mean_{target_col}"] = shifted.rolling(90, min_periods=30).mean()
+    return te
+
+# Per bucket (Bucket 1: min_lag=16, Bucket 2: min_lag=31, Bucket 3: min_lag=63):
+for bucket_cfg in BUCKET_CONFIGS:
+    min_lag = bucket_cfg["min_lag"]
+    for target_col in ["total_enc", "admitted_enc"]:
+        shifted = group[target_col].shift(min_lag)
+        df[f"te_site_mean_{target_col}"] = shifted.rolling(90, min_periods=30).mean()
+
+    # Site × Block baseline (per-group rolling mean — already grouped by site,block)
+    df["te_site_block_mean_total"] = group["total_enc"].shift(min_lag).rolling(90, min_periods=30).mean()
+    df["te_site_block_mean_admitted"] = group["admitted_enc"].shift(min_lag).rolling(90, min_periods=30).mean()
+
+    # Site admit rate (trailing 90-day, lagged)
+    shifted_total = group["total_enc"].shift(min_lag).rolling(90, min_periods=30).sum()
+    shifted_admitted = group["admitted_enc"].shift(min_lag).rolling(90, min_periods=30).sum()
+    df["te_site_admit_rate"] = shifted_admitted / shifted_total.clip(lower=1)
+
+    # Site × DOW mean (trailing, lagged)
+    # Computed at (site, dow) level, merged back per bucket
+    df["te_site_dow_mean"] = (
+        df.groupby(["site", "dow"])[target_col]
+        .transform(lambda g: g.shift(min_lag).rolling(90, min_periods=30).mean())
+    )
+```
+
+**Why this is especially powerful for Pipeline B:** Bucket 1 (min_lag=16) gets a 16-day-lagged baseline that's more current than Pipeline A's 63-day-lagged version. For Site D, where volumes are stable (D/A ratio CV < 0.05), even the 16-day-lagged baseline is accurate. The model immediately knows "this is a ~71/day site" without burning tree depth on the `site` categorical.
+
+**Feature count increase:** ~6–8 new features per bucket. Negligible impact on training time.
+
+### Enhancement B: Hybrid-Residual Model for Site D (add to `training.py`)
+
+After each bucket's global model produces OOF predictions, train a residual model on Site D's errors.
+
+#### Step 3B: Per-Bucket Residual Model
+
+```python
+# --- Inside per-fold, per-bucket training loop, AFTER global bucket model training ---
+
+def train_residual_model(global_model, X_train, y_train, X_val, y_val, bucket_cfg):
+    """Train a Site D residual corrector for one bucket."""
+    
+    # 1. Compute residuals for Site D in training data
+    mask_d_train = X_train["site"] == "D"
+    mask_d_val = X_val["site"] == "D"
+    
+    global_pred_d_train = global_model.predict(X_train[mask_d_train])
+    residuals_d_train = y_train[mask_d_train] - global_pred_d_train
+    
+    # 2. Residual feature set (SUBSET — no weather/reason-mix/cross-site)
+    RESIDUAL_FEATURES = [
+        "block", "dow", "month", "day_of_year", "days_ahead",  # days_ahead is Pipeline B's key feature
+        "te_site_block_mean_total", "te_site_block_mean_admitted",
+        "te_site_admit_rate",
+        f"lag_{bucket_cfg['min_lag']}", "lag_91", "lag_182", "lag_364",
+        "roll_mean_7", "roll_mean_28",
+        "global_pred",            # The global model's own prediction
+        "is_covid_era", "is_holiday", "is_weekend",
+    ]
+    # Filter to features that actually exist in this bucket
+    residual_feats = [f for f in RESIDUAL_FEATURES if f in X_train.columns]
+    
+    # 3. Heavily regularized LightGBM
+    residual_model = lgb.LGBMRegressor(
+        objective="regression",
+        n_estimators=300,
+        num_leaves=15,
+        max_depth=4,
+        min_child_samples=50,
+        learning_rate=0.03,
+        reg_lambda=5.0,
+        subsample=0.7,
+        colsample_bytree=0.7,
+        verbosity=-1,
+    )
+    
+    # Inner validation for early stopping
+    residual_model.fit(
+        X_train[mask_d_train][residual_feats], residuals_d_train,
+        eval_set=[(X_val[mask_d_val][residual_feats], 
+                    y_val[mask_d_val] - global_model.predict(X_val[mask_d_val]))],
+        callbacks=[lgb.early_stopping(30)],
+    )
+    return residual_model
+
+# 4. Final prediction
+SHRINKAGE_WEIGHT = 0.5  # Tune via inner CV in [0.3, 0.8]
+pred_d = global_pred_d + SHRINKAGE_WEIGHT * residual_model.predict(X_d[residual_feats])
+# Sites A/B/C: use global predictions unchanged
+```
+
+**Pipeline B-specific note:** The residual model includes `days_ahead` as a feature. This allows it to learn horizon-dependent corrections — e.g., "Site D Block 0 is overpredicted more at short horizons (Bucket 1) than long horizons (Bucket 3)." Train one residual model per bucket (3 residual models total for Site D).
+
+**Saved artifacts:** `fold_{k}/residual_d_bucket{1,2,3}_total.pkl` and `residual_d_bucket{1,2,3}_rate.pkl`.
+
+### Enhancement C: Zero-Inflation Post-Hoc (add to `predict.py`)
+
+Same as Pipeline A — apply after the hybrid-residual produces final admitted predictions for Site D:
+
+```python
+# Logistic regression on Site D sparse blocks (0, 1, 3)
+# p_zero = P(admitted_enc == 0 | block, dow, month, te_site_block_mean_admitted)
+# corrected = pred_admitted_d * (1 - p_zero * ZERO_SHRINKAGE)
+# See Pipeline A Enhancement C for full implementation
+```
+
+### Enhancement D: Admit-Rate Guardrails (add to `predict.py`)
+
+```python
+# Clamp Site D admit_rate predictions to historical [5th, 95th] percentile
+ADMIT_RATE_BOUNDS_D = {0: (0.08, 0.30), 1: (0.10, 0.35), 2: (0.10, 0.30), 3: (0.08, 0.28)}
+```
+
+### Eval Notes — Site D Enhancements
+- [ ] **Per-bucket ablation**: Measure Site D WAPE per bucket with/without target encoding + residual model
+- [ ] **Shrinkage tuning**: Tune `SHRINKAGE_WEIGHT` per bucket independently — short-horizon buckets may benefit from higher weight (more recent data = more reliable residuals)
+- [ ] **Collateral damage**: Sites A/B/C WAPE must not degrade — verify identical predictions
+- [ ] **Residual feature importance**: Should be dominated by `block`, `global_pred`, `days_ahead`, `te_site_block_mean` — if lags dominate, the model may be overfitting
+
+---
+
 ## Appendix A: Option B2 — Single Model with `days_ahead` Feature (Alternative)
 
 If Option B1 (bucket models) proves too expensive or underperforms:

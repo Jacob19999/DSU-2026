@@ -1138,6 +1138,106 @@ Pipelines/pipeline_E/
 
 ---
 
+## Site D Isolation Enhancement (master_strategy.md §11)
+
+Site D has a WAPE of ~0.47 vs ~0.24 for A/B/C. Pipeline E's global GBDT (Step 6) trains on all sites, but Site D's gradient signal is drowned out by higher-volume sites. Additionally, Pipeline E's reason-mix factors are noisier for Site D because 52.5% of its visits fall in the "other" catch-all (vs ~44-50% for other sites). See §11.2 of master_strategy.md for the full diagnosis.
+
+The fix: **Target Encoding** (fix baseline) + **Hybrid-Residual** (fix tail error).
+
+### Enhancement A: Target Encoding Features (add to `step_05_feature_eng.py`)
+
+Add alongside existing standard features (lags, rolling, calendar) in Step 5. Use the same lag/shift rules as Pipeline A (ROLLING_SHIFT = 63, matching Pipeline E's existing lag structure from §3.1).
+
+#### 5.X Site-Level Target Encodings
+
+```python
+# Per (site, block) group, shifted by ROLLING_SHIFT (63 days):
+
+# 1. Site baseline volume
+for target_col in ["total_enc", "admitted_enc"]:
+    shifted = group[target_col].shift(ROLLING_SHIFT)
+    df[f"te_site_mean_{target_col}"] = shifted.rolling(90, min_periods=30).mean()
+
+# 2. Site × Block baseline
+df["te_site_block_mean_total"] = group["total_enc"].shift(ROLLING_SHIFT).rolling(90, min_periods=30).mean()
+df["te_site_block_mean_admitted"] = group["admitted_enc"].shift(ROLLING_SHIFT).rolling(90, min_periods=30).mean()
+
+# 3. Site admit rate (trailing 90-day, lagged)
+shifted_total = group["total_enc"].shift(ROLLING_SHIFT).rolling(90, min_periods=30).sum()
+shifted_admitted = group["admitted_enc"].shift(ROLLING_SHIFT).rolling(90, min_periods=30).sum()
+df["te_site_admit_rate"] = shifted_admitted / shifted_total.clip(lower=1)
+
+# 4. Site × DOW mean (trailing, lagged)
+df["te_site_dow_mean"] = (
+    df.groupby(["site", "dow"])["total_enc"]
+    .transform(lambda g: g.shift(ROLLING_SHIFT).rolling(90, min_periods=30).mean())
+)
+```
+
+**Pipeline E-specific note:** Target encoding is especially valuable here because Pipeline E adds ~30 factor features on top of the standard ~60. For Site D, many of these factor features are noisier (due to the 52.5% "other" share reducing factor quality). The target encoding gives the tree a reliable numeric baseline so it doesn't over-rely on noisy factor features for Site D.
+
+**Feature count increase:** ~6–8 new features added to the existing ~90–110 feature set.
+
+### Enhancement B: Hybrid-Residual Model for Site D (add to `step_06_train.py`)
+
+After the final GBDT (E1 for total_enc, E2 for admit_rate) is trained:
+
+```python
+# --- Inside per-fold training, AFTER global model E1/E2 training ---
+
+# 1. Compute OOF residuals for Site D
+mask_d = X_train["site"] == "D"
+global_pred_d = global_model.predict(X_train[mask_d])
+residuals_d = y_train[mask_d] - global_pred_d
+
+# 2. Residual feature set (SUBSET — exclude factor features and reason-mix)
+#    Factor features are already captured by the global model — re-including
+#    them in the residual model risks overfitting to factor noise on Site D
+RESIDUAL_FEATURES = [
+    "block", "dow", "month", "day_of_year",
+    "te_site_block_mean_total", "te_site_block_mean_admitted",
+    "te_site_admit_rate",
+    "lag_63", "lag_91", "lag_182", "lag_364",
+    "roll_mean_7", "roll_mean_28",
+    "global_pred",
+    "is_covid_era", "is_holiday", "is_weekend",
+]
+
+# 3. Heavily regularized LightGBM (same spec as Pipeline A)
+residual_model = lgb.LGBMRegressor(
+    objective="regression", n_estimators=300, num_leaves=15,
+    max_depth=4, min_child_samples=50, learning_rate=0.03,
+    reg_lambda=5.0, subsample=0.7, colsample_bytree=0.7, verbosity=-1,
+)
+residual_model.fit(X_train_d[RESIDUAL_FEATURES], residuals_d, ...)
+
+# 4. Final Site D prediction
+SHRINKAGE_WEIGHT = 0.5  # Tune via inner CV
+pred_d = global_pred_d + SHRINKAGE_WEIGHT * residual_model.predict(X_d[RESIDUAL_FEATURES])
+```
+
+**Why factor features are EXCLUDED from the residual model:** Pipeline E's factors are derived from reason-mix shares. For Site D, 52.5% of visits are "other" — the factors are already noisy. The global model uses them as best it can. The residual model should correct *structural biases* (block-level, DOW-level) using the reliable target-encoded baselines, not try to squeeze more signal from noisy factors.
+
+### Enhancement C: Zero-Inflation Post-Hoc + Admit-Rate Guardrails
+
+Same as Pipeline A — apply to Site D admitted predictions after hybrid-residual:
+
+```python
+# Zero-inflation correction (Blocks 0, 1, 3)
+# corrected = pred_admitted_d * (1 - p_zero * ZERO_SHRINKAGE)
+
+# Admit-rate guardrails
+ADMIT_RATE_BOUNDS_D = {0: (0.08, 0.30), 1: (0.10, 0.35), 2: (0.10, 0.30), 3: (0.08, 0.28)}
+```
+
+### Eval Notes — Site D Enhancements
+- [ ] **Factor quality by site**: Print per-factor variance for Site D vs A/B/C — confirms D's factors are noisier
+- [ ] **Ablation**: Compare (1) base Pipeline E, (2) + target encoding, (3) + residual model. Each should improve Site D WAPE without hurting A/B/C
+- [ ] **Residual features**: Verify no factor features leak into the residual model
+- [ ] **Shrinkage**: Tune independently from Pipeline A/B — Pipeline E may need different weight since its global model already has factor features
+
+---
+
 ## Appendix A: Pipeline E vs Pipeline A — Architectural Delta
 
 | Aspect | Pipeline A | Pipeline E (this) |

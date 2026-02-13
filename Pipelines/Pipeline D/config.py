@@ -53,11 +53,21 @@ FOURIER_TERMS = [
     {"period": 365.25, "order": 10},   # Annual (20 features)
 ]
 
-# ── GLM Model Configuration ─────────────────────────────────────────────────
+# ── Model Architecture ──────────────────────────────────────────────────────
+# "mixed_effects" = single mixedlm with (1|site) + (1|site:block) random intercepts
+# "per_series"    = 16 separate GLMs (original approach, fallback)
+MODEL_TYPE = "mixed_effects"
+
+# ── GLM Model Configuration (per-series fallback) ──────────────────────────
 
 GLM_ALPHA   = 0.1     # L2 regularization strength
 GLM_L1_WT   = 0.0     # 0 = pure Ridge; 1 = pure Lasso
 GLM_MAXITER = 200
+
+# ── Mixed-Effects Configuration ────────────────────────────────────────────
+MIXED_EFFECTS_METHOD  = "lbfgs"   # Optimization method for mixedlm
+MIXED_EFFECTS_REML    = True      # REML vs ML estimation
+MIXED_EFFECTS_MAXITER = 500
 
 # ── Tuning Search Space ─────────────────────────────────────────────────────
 

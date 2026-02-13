@@ -34,6 +34,41 @@ def _add_share_lags(block_df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def _add_cross_block_share_lags(block_df: pd.DataFrame) -> pd.DataFrame:
+    """Cross-block share lags: Block 0 ← lagged Block 3 share (evening decay).
+
+    Block 0's share of daily volume correlates with Block 3's share from
+    prior days — if evenings are busy, overnight tends to be busy too.
+    All lags >= ROLLING_SHIFT_SHARES (63 d) to prevent leakage.
+    """
+    df = block_df.copy()
+
+    for _site in df["site"].unique():
+        site_mask = df["site"] == _site
+
+        # Block 3 share series (sorted by date)
+        b3 = df.loc[site_mask & (df["block"] == 3)].sort_values("date")
+        b3_share = b3["block_share"]
+
+        # Block 0 rows to enrich
+        b0_idx = df.loc[site_mask & (df["block"] == 0)].sort_values("date").index
+
+        # Point lags
+        for lag in cfg.LAG_DAYS_SHARES:
+            df.loc[b0_idx, f"xblock_b3_share_{lag}"] = (
+                b3_share.shift(lag).values
+            )
+
+        # Rolling mean of Block 3 share, shifted safely
+        b3_shifted = b3_share.shift(cfg.ROLLING_SHIFT_SHARES)
+        for w in [7, 14, 28]:
+            df.loc[b0_idx, f"xblock_b3_share_roll_mean_{w}"] = (
+                b3_shifted.rolling(w, min_periods=1).mean().values
+            )
+
+    return df
+
+
 def _add_share_rolling(block_df: pd.DataFrame) -> pd.DataFrame:
     """Per (site, block): rolling mean of block_share, shifted by 63 days."""
     df = block_df.copy()
@@ -45,6 +80,33 @@ def _add_share_rolling(block_df: pd.DataFrame) -> pd.DataFrame:
             df.loc[idx, f"share_roll_mean_{w}"] = (
                 shifted.rolling(w, min_periods=1).mean().values
             )
+    return df
+
+
+# ── Target encoding for share model ──────────────────────────────────────────
+
+def _add_share_target_encodings(block_df: pd.DataFrame) -> pd.DataFrame:
+    """Trailing 90-day mean block share per (site, block), lagged.
+
+    For Site D, Block 0's share (~10.3%) is lower than other sites (~11.8-12.6%),
+    and more variable.  This gives the share model a site-level share baseline.
+    """
+    df = block_df.copy()
+
+    for (_site, _blk), grp in df.groupby(["site", "block"]):
+        idx = grp.index
+        # Share baseline per (site, block)
+        shifted = grp["block_share"].shift(cfg.ROLLING_SHIFT_SHARES)
+        df.loc[idx, "te_site_block_share"] = (
+            shifted.rolling(90, min_periods=30).mean().values
+        )
+        # Admitted share baseline per (site, block)
+        if "admit_block_share" in grp.columns:
+            shifted_a = grp["admit_block_share"].shift(cfg.ROLLING_SHIFT_SHARES)
+            df.loc[idx, "te_site_block_admit_share"] = (
+                shifted_a.rolling(90, min_periods=30).mean().values
+            )
+
     return df
 
 
@@ -119,6 +181,10 @@ def get_share_feature_columns(df: pd.DataFrame) -> list[str]:
     # Add share lags & rolling
     candidates += [c for c in df.columns if c.startswith("share_lag_")]
     candidates += [c for c in df.columns if c.startswith("share_roll_mean_")]
+    # Cross-block: Block 0 ← lagged Block 3 share
+    candidates += [c for c in df.columns if c.startswith("xblock_b3_")]
+    # Target-encoded share baselines
+    candidates += [c for c in df.columns if c.startswith("te_site_block_")]
 
     return sorted(c for c in candidates if c in df.columns)
 
@@ -140,8 +206,14 @@ def engineer_share_features(block_df: pd.DataFrame) -> pd.DataFrame:
     print("  [3b] Share lag features ...")
     df = _add_share_lags(df)
 
+    print("  [3b2] Cross-block share lags (evening decay) ...")
+    df = _add_cross_block_share_lags(df)
+
     print("  [3c] Share rolling features ...")
     df = _add_share_rolling(df)
+
+    print("  [3c2] Share target encodings (Site D isolation) ...")
+    df = _add_share_target_encodings(df)
 
     print("  [3d] Calendar features for share model ...")
     df = _add_share_calendar(df)

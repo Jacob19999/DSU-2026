@@ -1,8 +1,16 @@
 """
-GLM training for Pipeline D — 16 Poisson GLMs (total_enc) + 16 Binomial GLMs (admit_rate).
+GLM training for Pipeline D.
 
-One model per (Site, Block) pair.  Uses statsmodels with L2 regularization.
-COVID-era rows are downweighted via freq_weights.
+Supports two modes (config.MODEL_TYPE):
+  "mixed_effects" (DEFAULT):
+    Single statsmodels.mixedlm with (1 | site) + (1 | site:block) random
+    intercepts replaces 16 per-series GLMs.  Principled partial pooling
+    shrinks Site D toward the population mean.
+  "per_series" (FALLBACK):
+    16 Poisson GLMs (total_enc) + 16 Binomial GLMs (admit_rate).
+    One model per (Site, Block) pair.
+
+COVID-era rows are downweighted via freq_weights / sample_weight.
 """
 
 from __future__ import annotations
@@ -12,6 +20,7 @@ import warnings
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
+import statsmodels.formula.api as smf
 
 import config as cfg
 from data_loader import get_site_block_subset
@@ -118,7 +127,194 @@ def train_rate_model(
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  TRAIN ALL 32 MODELS
+#  MIXED-EFFECTS MODEL (replaces 16 per-series GLMs)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def train_mixed_effects_total(
+    train_df: pd.DataFrame,
+    fourier_config: list[dict] | None = None,
+    *,
+    verbose: bool = True,
+):
+    """Fit a single log-Gaussian mixed-effects model for total_enc.
+
+    Fixed effects: Fourier + DOW + holidays + trend + weather (shared).
+    Random effects: (1 | site) + (1 | site_block) intercepts.
+
+    Returns the fitted MixedLMResults object.
+    """
+    df = train_df.copy()
+
+    # Build design matrix features (without intercept for formula-based API)
+    X = build_design_matrix(df, fourier_config)
+    feature_cols = [c for c in X.columns if c != "const"]
+
+    # Merge features into df
+    for col in feature_cols:
+        df[col] = X[col].values
+
+    # Create grouping variables
+    df["site_block"] = df["site"].astype(str) + "_" + df["block"].astype(str)
+
+    # Log-transform target (log1p for zero-safety)
+    df["log_total"] = np.log1p(df["total_enc"])
+
+    # Build formula string
+    formula_rhs = " + ".join(feature_cols)
+    formula = f"log_total ~ {formula_rhs}"
+
+    # Fit mixed-effects model
+    try:
+        model = smf.mixedlm(
+            formula=formula,
+            data=df,
+            groups=df["site"],
+            re_formula="1",
+            vc_formula={"site_block": "0 + C(site_block)"},
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            result = model.fit(method="lbfgs", maxiter=500, reml=True)
+
+        if verbose:
+            print(f"  [Mixed-effects total_enc] converged={result.converged}  "
+                  f"n={len(df):,}  n_groups(site)={df['site'].nunique()}  "
+                  f"n_groups(site_block)={df['site_block'].nunique()}")
+            # Print random effects summary
+            re = result.random_effects
+            for site, effects in re.items():
+                intercept = effects.get("Group", effects.get("Intercept", 0.0))
+                print(f"    Site {site}: random intercept = {intercept:+.4f}")
+
+        result._feature_cols = feature_cols
+        result._fourier_config = fourier_config
+        return result
+
+    except Exception as e:
+        if verbose:
+            print(f"  [Mixed-effects total_enc] FAILED: {e}")
+            print("  Falling back to per-series GLMs...")
+        return None
+
+
+def train_mixed_effects_rate(
+    train_df: pd.DataFrame,
+    fourier_config: list[dict] | None = None,
+    *,
+    verbose: bool = True,
+):
+    """Fit a logit-transformed mixed-effects model for admit_rate.
+
+    Encodes the 17.4% vs 31.6% structural gap via site random intercept.
+    """
+    df = train_df.copy()
+
+    X = build_design_matrix(df, fourier_config)
+    feature_cols = [c for c in X.columns if c != "const"]
+
+    for col in feature_cols:
+        df[col] = X[col].values
+
+    df["site_block"] = df["site"].astype(str) + "_" + df["block"].astype(str)
+
+    # Logit-transform admit_rate (clamp away from 0/1)
+    rate_clamped = df["admit_rate"].clip(0.01, 0.99)
+    df["logit_rate"] = np.log(rate_clamped / (1 - rate_clamped))
+
+    formula_rhs = " + ".join(feature_cols)
+    formula = f"logit_rate ~ {formula_rhs}"
+
+    try:
+        model = smf.mixedlm(
+            formula=formula,
+            data=df,
+            groups=df["site"],
+            re_formula="1",
+            vc_formula={"site_block": "0 + C(site_block)"},
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            result = model.fit(method="lbfgs", maxiter=500, reml=True)
+
+        if verbose:
+            print(f"  [Mixed-effects admit_rate] converged={result.converged}  "
+                  f"n={len(df):,}")
+            re = result.random_effects
+            for site, effects in re.items():
+                intercept = effects.get("Group", effects.get("Intercept", 0.0))
+                print(f"    Site {site}: random intercept = {intercept:+.4f}")
+
+        result._feature_cols = feature_cols
+        result._fourier_config = fourier_config
+        return result
+
+    except Exception as e:
+        if verbose:
+            print(f"  [Mixed-effects admit_rate] FAILED: {e}")
+            print("  Falling back to per-series GLMs...")
+        return None
+
+
+def predict_mixed_effects(
+    model_result,
+    pred_df: pd.DataFrame,
+    target: str = "total",
+) -> np.ndarray:
+    """Generate predictions from a mixed-effects model.
+
+    For total: predictions are on log1p scale → expm1 back to counts.
+    For rate:  predictions are on logit scale → expit back to [0,1].
+    """
+    df = pred_df.copy()
+    feature_cols = model_result._feature_cols
+    fourier_config = model_result._fourier_config
+
+    X = build_design_matrix(df, fourier_config)
+    for col in feature_cols:
+        if col in X.columns:
+            df[col] = X[col].values
+        else:
+            df[col] = 0.0
+
+    df["site_block"] = df["site"].astype(str) + "_" + df["block"].astype(str)
+
+    pred = model_result.predict(df)
+
+    if target == "total":
+        return np.expm1(pred.values).clip(0)
+    else:
+        # Inverse logit (expit)
+        return (1 / (1 + np.exp(-pred.values))).clip(0, 1)
+
+
+def train_mixed_effects_all(
+    train_df: pd.DataFrame,
+    fourier_config: list[dict] | None = None,
+    *,
+    verbose: bool = True,
+) -> dict | None:
+    """Train mixed-effects models for both total_enc and admit_rate.
+
+    Returns dict {"total_model": ..., "rate_model": ..., "model_type": "mixed_effects"}
+    or None if training fails (caller should fall back to per-series).
+    """
+    total_model = train_mixed_effects_total(train_df, fourier_config, verbose=verbose)
+    if total_model is None:
+        return None
+
+    rate_model = train_mixed_effects_rate(train_df, fourier_config, verbose=verbose)
+    if rate_model is None:
+        return None
+
+    return {
+        "total_model": total_model,
+        "rate_model": rate_model,
+        "model_type": "mixed_effects",
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  TRAIN ALL 32 MODELS (per-series fallback)
 # ══════════════════════════════════════════════════════════════════════════════
 
 def train_all_models(
@@ -186,6 +382,39 @@ def train_all_models(
     return models
 
 
+def train_models(
+    train_df: pd.DataFrame,
+    fourier_config: list[dict] | None = None,
+    alpha: float = cfg.GLM_ALPHA,
+    *,
+    verbose: bool = True,
+) -> dict:
+    """Unified entry point: tries mixed-effects first, falls back to per-series.
+
+    Returns either:
+      - {"model_type": "mixed_effects", "total_model": MixedLMResult, "rate_model": MixedLMResult}
+      - Per-series dict keyed by (site, block) → {"total_model": ..., "rate_model": ...}
+        with added key "model_type": "per_series"
+    """
+    model_type = getattr(cfg, "MODEL_TYPE", "per_series")
+
+    if model_type == "mixed_effects":
+        if verbose:
+            print("  Attempting mixed-effects model (single pooled model)...")
+        result = train_mixed_effects_all(train_df, fourier_config, verbose=verbose)
+        if result is not None:
+            return result
+        if verbose:
+            print("  Mixed-effects failed → falling back to per-series GLMs")
+
+    # Per-series fallback
+    if verbose:
+        print("  Training 32 per-series GLMs...")
+    models = train_all_models(train_df, fourier_config, alpha, verbose=verbose)
+    models["model_type"] = "per_series"
+    return models
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 #  SERIALISATION
 # ══════════════════════════════════════════════════════════════════════════════
@@ -197,19 +426,34 @@ def save_models(
     """Persist fitted models + coefficient tables to disk."""
     fdir = cfg.fold_model_dir(fold_id)
 
+    model_type = models.get("model_type", "per_series")
+
+    if model_type == "mixed_effects":
+        # Save the two mixed-effects models
+        with open(fdir / "mixed_total_model.pkl", "wb") as f:
+            pickle.dump(models["total_model"], f)
+        with open(fdir / "mixed_rate_model.pkl", "wb") as f:
+            pickle.dump(models["rate_model"], f)
+        # Save type marker
+        (fdir / "model_type.txt").write_text("mixed_effects")
+        return
+
+    # Per-series models
+    (fdir / "model_type.txt").write_text("per_series")
     coeff_rows = []
-    for (site, block), m in models.items():
-        # Total model
+    for key, m in models.items():
+        if key == "model_type" or not isinstance(key, tuple):
+            continue
+        site, block = key
+
         total_path = fdir / f"total_model_{site}_{block}.pkl"
         with open(total_path, "wb") as f:
             pickle.dump(m["total_model"], f)
 
-        # Rate model
         rate_path = fdir / f"rate_model_{site}_{block}.pkl"
         with open(rate_path, "wb") as f:
             pickle.dump(m["rate_model"], f)
 
-        # Coefficient table
         names = m["total_model"]._feature_names
         for i, name in enumerate(names):
             coeff_rows.append({
@@ -225,8 +469,32 @@ def save_models(
 
 
 def load_models(fold_id: int) -> dict | None:
-    """Load previously saved models from disk."""
+    """Load previously saved models from disk (handles both model types)."""
     fdir = cfg.fold_model_dir(fold_id)
+
+    # Check model type
+    type_path = fdir / "model_type.txt"
+    if type_path.exists():
+        model_type = type_path.read_text().strip()
+    else:
+        model_type = "per_series"
+
+    if model_type == "mixed_effects":
+        total_path = fdir / "mixed_total_model.pkl"
+        rate_path = fdir / "mixed_rate_model.pkl"
+        if not total_path.exists() or not rate_path.exists():
+            return None
+        with open(total_path, "rb") as f:
+            total_model = pickle.load(f)
+        with open(rate_path, "rb") as f:
+            rate_model = pickle.load(f)
+        return {
+            "total_model": total_model,
+            "rate_model": rate_model,
+            "model_type": "mixed_effects",
+        }
+
+    # Per-series fallback
     models = {}
     for site in cfg.SITES:
         for block in cfg.BLOCKS:
@@ -242,6 +510,7 @@ def load_models(fold_id: int) -> dict | None:
                 "total_model": total_model,
                 "rate_model":  rate_model,
             }
+    models["model_type"] = "per_series"
     return models
 
 

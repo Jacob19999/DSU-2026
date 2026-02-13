@@ -1,12 +1,12 @@
 {
   "objective": "poisson",
-  "n_estimators": 2801,
+  "n_estimators": 1106,
   "max_depth": 4,
-  "learning_rate": 0.02459504231765864,
-  "num_leaves": 133,
-  "subsample": 0.8906200007649432,
-  "colsample_bytree": 0.7783656421322895,
-  "reg_lambda": 3.565215099256181,
+  "learning_rate": 0.013321159283205894,
+  "num_leaves": 108,
+  "subsample": 0.8430925453587281,
+  "colsample_bytree": 0.8817543716393723,
+  "reg_lambda": 2.2727056954981952,
   "min_child_weight": 8,
   "verbosity": -1
 }

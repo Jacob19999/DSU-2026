@@ -1167,6 +1167,112 @@ Pipelines/pipeline_C/
 
 ---
 
+## Site D Isolation Enhancement (master_strategy.md §11)
+
+Pipeline C currently has the **best** Site D WAPE among non-D pipelines (0.4657 vs ~0.47–0.49 for A/B/E). This is because hierarchical modeling (daily→block) reduces noise — Site D's daily total (~71) is more stable than its block-level counts (~7–26). But 0.47 is still nearly 2× worse than other sites.
+
+Pipeline C's architecture offers a unique advantage for Site D: the daily model already pools noise across blocks, and the share model can leverage more data. The fix adapts the same Target Encoding + Hybrid-Residual strategy to C's two-level structure.
+
+### Enhancement A: Target Encoding for Daily Model (add to `step_02_feature_eng_daily.py`)
+
+The daily model trains on `(site, date)` level — 4 sites × 2,800 dates ≈ 11,200 rows. Add target encoding to give the tree Site D's baseline numerically.
+
+```python
+# Per site group, shifted by ROLLING_SHIFT_DAILY (63 days):
+
+# 1. Site baseline (trailing 90-day daily mean, lagged)
+for target_col in ["daily_total", "daily_admitted"]:
+    shifted = group[target_col].shift(ROLLING_SHIFT_DAILY)
+    df[f"te_site_mean_{target_col}"] = shifted.rolling(90, min_periods=30).mean()
+
+# 2. Site admit rate (trailing 90-day, lagged)
+shifted_total = group["daily_total"].shift(ROLLING_SHIFT_DAILY).rolling(90, min_periods=30).sum()
+shifted_admitted = group["daily_admitted"].shift(ROLLING_SHIFT_DAILY).rolling(90, min_periods=30).sum()
+df["te_site_admit_rate"] = shifted_admitted / shifted_total.clip(lower=1)
+
+# 3. Site × DOW daily mean (trailing, lagged)
+df["te_site_dow_daily_mean"] = (
+    df.groupby(["site", "dow"])["daily_total"]
+    .transform(lambda g: g.shift(ROLLING_SHIFT_DAILY).rolling(90, min_periods=30).mean())
+)
+```
+
+### Enhancement B: Target Encoding for Share Model (add to `step_03_feature_eng_shares.py`)
+
+The share model predicts block proportions. For Site D, Block 0's share (~10.3%) is lower than other sites (~11.8–12.6%), and more variable. Add site-level share baselines:
+
+```python
+# Trailing 90-day mean block share per (site, block), lagged
+df["te_site_block_share"] = (
+    group["block_share"].shift(ROLLING_SHIFT_DAILY).rolling(90, min_periods=30).mean()
+)
+```
+
+### Enhancement C: Hybrid-Residual for Daily Model (add to `step_04_train_daily.py`)
+
+After the global daily model (C1) is trained:
+
+```python
+# 1. OOF residuals for Site D
+mask_d = X_train["site"] == "D"
+global_pred_d = daily_model.predict(X_train[mask_d])
+residuals_d = y_train[mask_d] - global_pred_d
+
+# 2. Residual features (SUBSET)
+RESIDUAL_FEATURES = [
+    "dow", "month", "day_of_year",
+    "te_site_mean_daily_total", "te_site_mean_daily_admitted",
+    "te_site_admit_rate",
+    "lag_63", "lag_91", "lag_182", "lag_364",
+    "roll_mean_7", "roll_mean_28",
+    "global_pred",
+    "is_covid_era", "is_holiday", "is_weekend",
+]
+
+# 3. Small regularized GBDT on Site D residuals
+residual_model = lgb.LGBMRegressor(
+    objective="regression", n_estimators=300, num_leaves=15,
+    max_depth=4, min_child_samples=50, learning_rate=0.03,
+    reg_lambda=5.0, subsample=0.7, colsample_bytree=0.7, verbosity=-1,
+)
+residual_model.fit(X_train_d[RESIDUAL_FEATURES], residuals_d, ...)
+
+# 4. Final daily prediction for Site D
+SHRINKAGE_WEIGHT = 0.5
+daily_pred_d = global_daily_pred_d + SHRINKAGE_WEIGHT * residual_model.predict(X_d[RESIDUAL_FEATURES])
+
+# 5. Block allocation proceeds as normal — shares × corrected daily total
+block_pred_d = daily_pred_d * share_pred_d  # Per block
+```
+
+**Pipeline C-specific advantage:** The residual model operates at the *daily* level where noise is lower (~71/day vs ~7–26/block). This means the residual correction is more reliable here than in Pipelines A/B/E where it operates at block level.
+
+### Enhancement D: Zero-Inflation Post-Hoc (add to `step_07_predict.py`)
+
+After daily→block allocation, apply the zero-inflation correction to Site D admitted predictions at block level:
+
+```python
+# Same as other pipelines — correct Block 0/1/3 admitted predictions
+# corrected = pred_admitted_d_block * (1 - p_zero * ZERO_SHRINKAGE)
+```
+
+### Enhancement E: Admit-Rate Guardrails (add to `step_07_predict.py`)
+
+```python
+# Clamp Site D daily admit_rate to historical [5th, 95th] percentile
+# Before block allocation
+ADMIT_RATE_BOUNDS_D_DAILY = (0.10, 0.28)  # Daily-level bounds
+daily_admit_rate_d = daily_admit_rate_d.clip(*ADMIT_RATE_BOUNDS_D_DAILY)
+```
+
+### Eval Notes — Site D Enhancements
+- [ ] **Daily vs block WAPE**: Measure Site D improvement at both levels — daily correction should cascade to block improvement
+- [ ] **Share model stability**: Verify block shares for Site D are not distorted by the daily residual correction
+- [ ] **Ablation**: (1) base C, (2) + target encoding, (3) + residual. Each should help Site D
+- [ ] **Coherence**: After all corrections, verify blocks still sum to daily total (round and reconcile if needed)
+
+---
+
 ## Appendix A: Key Differences from Pipeline A and B
 
 | Aspect | Pipeline A | Pipeline B | Pipeline C (this) |

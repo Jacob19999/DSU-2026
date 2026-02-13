@@ -730,6 +730,178 @@ def main(args):
 
 ---
 
+## Site D Isolation Enhancement (master_strategy.md §11)
+
+Site D has a WAPE of ~0.47 vs ~0.24 for A/B/C. The global model already trains on all sites (vanilla partial pooling), but this fails because: (1) Site B dominates the loss gradient (36% of rows, highest volume), (2) GBDT can't do true partial pooling — it either splits on `site` (local) or doesn't (total pooling), (3) Site D's 17.4% admit rate is structurally different from A/C (~31%). See §11.2 for full diagnosis.
+
+The fix has two components: **Target Encoding** (fix the baseline problem) and **Hybrid-Residual** (fix the tail error).
+
+### Enhancement A: Target Encoding Features (add to `step_02_feature_eng.py`)
+
+Add these to feature engineering, computed **per (Site, Block) group** with the same lag/shift rules as existing features. All use trailing windows with `ROLLING_SHIFT = 63` to avoid leakage.
+
+#### 2L. Site-Level Target Encodings
+
+```python
+# --- Computed per (site, block) group, shifted by ROLLING_SHIFT ---
+
+# 1. Site baseline volume (trailing 90-day mean, lagged)
+for target_col in ["total_enc", "admitted_enc"]:
+    shifted = group[target_col].shift(ROLLING_SHIFT)
+    df[f"te_site_mean_{target_col}"] = shifted.rolling(90, min_periods=30).mean()
+
+# 2. Site × Block baseline (same as above, but already per-group since we group by site,block)
+#    This IS te_site_block_mean — the group-level rolling mean
+df["te_site_block_mean_total"] = group["total_enc"].shift(ROLLING_SHIFT).rolling(90, min_periods=30).mean()
+df["te_site_block_mean_admitted"] = group["admitted_enc"].shift(ROLLING_SHIFT).rolling(90, min_periods=30).mean()
+
+# 3. Site admit rate (trailing 90-day, lagged) — encodes the 17.4% vs 31.6% gap directly
+shifted_total = group["total_enc"].shift(ROLLING_SHIFT).rolling(90, min_periods=30).sum()
+shifted_admitted = group["admitted_enc"].shift(ROLLING_SHIFT).rolling(90, min_periods=30).sum()
+df["te_site_admit_rate"] = (shifted_admitted / shifted_total.clip(lower=1))
+
+# 4. Site × DOW mean (trailing, lagged) — encodes Site D's flat weekday/weekend pattern
+#    Must be computed at the (site, dow) level, then merged back
+site_dow_means = (
+    df.groupby(["site", "dow"])
+    .apply(lambda g: g["total_enc"].shift(ROLLING_SHIFT).rolling(90, min_periods=30).mean())
+)
+df["te_site_dow_mean"] = site_dow_means.values
+
+# 5. Site × Month mean (historical same-month average from prior years, lagged)
+#    Computed per fold inside training loop (like existing mean encodings in 2I)
+#    Infrastructure function defined here, called in Step 3
+def compute_te_site_month(train_df, target_col="total_enc"):
+    """Trailing same-month mean per site from training data only."""
+    return train_df.groupby(["site", "month"])[target_col].transform("mean")
+```
+
+**Why these work where raw `site` fails:** Trees can now split on `te_site_mean_total < 80` to isolate low-volume sites numerically. Multiplicative effects (holiday = +10%) apply to the encoded baseline (71 for Site D) instead of the population mean (112). The admit-rate gap (17.4% vs 31.6%) becomes a continuous feature instead of forcing the tree to discover it from a categorical.
+
+**Feature count increase:** ~8 new features. Minimal impact on training time.
+
+#### Eval Notes — Enhancement A
+- [ ] **Leakage check**: All `te_*` features use `shift(ROLLING_SHIFT)` — verify no same-period data leaks
+- [ ] **NaN budget**: First ~90 days of each group will be NaN due to rolling window — confirm these are excluded from training
+- [ ] **Value range**: `te_site_admit_rate` should be in [0, 1]; `te_site_mean_total` should be ~70–170 (matching known site ranges)
+- [ ] **Ablation**: Train with and without `te_*` features; check Site D WAPE improvement and A/B/C stability
+
+### Enhancement B: Hybrid-Residual Model for Site D (add to `step_03_train.py`)
+
+After the global model (A1 + A2) is trained and produces out-of-fold predictions, train a small local residual model on Site D's errors.
+
+#### Step 3B: Residual Model Training
+
+```python
+# --- Inside the per-fold training loop, AFTER global model training ---
+
+# 1. Collect OOF predictions for Site D from the global model
+oof_preds_d = global_model.predict(X_val[X_val["site"] == "D"])
+actuals_d = y_val[X_val["site"] == "D"]
+residuals_d = actuals_d - oof_preds_d
+
+# 2. Build residual training set (Site D only, from training portion)
+#    Use 3-fold inner CV to avoid overfitting the residual model to itself
+X_train_d = X_train[X_train["site"] == "D"]
+y_train_d_residual = y_train_d_actual - global_model.predict(X_train_d)
+
+# 3. Residual model features (SUBSET — do NOT re-include weather/reason-mix/cross-site)
+RESIDUAL_FEATURES = [
+    "block", "dow", "month", "day_of_year",
+    "te_site_block_mean_total", "te_site_block_mean_admitted",
+    "te_site_admit_rate",
+    "lag_63", "lag_91", "lag_182", "lag_364",   # Site D's own lags
+    "roll_mean_7", "roll_mean_28",               # Site D's own rolling stats
+    "global_pred",                                # The global model's prediction (heteroscedasticity)
+    "is_covid_era", "is_holiday", "is_weekend",
+]
+
+# 4. Train with AGGRESSIVE regularization (only ~11K rows)
+RESIDUAL_LGBM_PARAMS = {
+    "objective": "regression",     # Predict continuous residual
+    "n_estimators": 300,           # Low — don't overfit
+    "num_leaves": 15,              # Very constrained tree
+    "max_depth": 4,
+    "min_child_samples": 50,       # Large — need stable leaves
+    "learning_rate": 0.03,
+    "reg_lambda": 5.0,             # Strong L2
+    "subsample": 0.7,
+    "colsample_bytree": 0.7,
+    "verbosity": -1,
+}
+
+residual_model = lgb.LGBMRegressor(**RESIDUAL_LGBM_PARAMS)
+residual_model.fit(
+    X_train_d[RESIDUAL_FEATURES], y_train_d_residual,
+    eval_set=[(X_val_d_inner[RESIDUAL_FEATURES], y_val_d_inner_residual)],
+    callbacks=[lgb.early_stopping(30)],
+)
+
+# 5. Final prediction for Site D
+SHRINKAGE_WEIGHT = 0.5  # Tune via inner CV in [0.3, 0.8]
+pred_d = global_pred_d + SHRINKAGE_WEIGHT * residual_model.predict(X_d[RESIDUAL_FEATURES])
+
+# 6. For sites A/B/C — use global predictions unchanged
+pred_abc = global_model.predict(X_abc)
+```
+
+**Key implementation notes:**
+- `SHRINKAGE_WEIGHT` controls how much to trust the residual correction. Start at 0.5. Tune via 3-fold inner CV within the training fold — try `[0.3, 0.4, 0.5, 0.6, 0.7, 0.8]`, pick the value that minimizes Site D WAPE without degrading A/B/C.
+- The residual model trains on `y_actual - y_global_pred` (the global model's systematic errors on Site D). It should learn patterns like "Block 0 is overpredicted" or "Mondays are underpredicted."
+- **Do NOT include** weather, reason-mix, or cross-site features — these are already captured by the global model. Re-including them gives the residual model a path to overfit by re-learning global signal.
+- The residual model is saved alongside the global model: `fold_{k}_residual_d.txt`.
+
+#### Step 3C: Zero-Inflation Post-Hoc (Site D Block 0/1/3)
+
+```python
+# --- After hybrid-residual produces final predictions ---
+
+# 1. Train zero-classifier on Site D sparse blocks
+from sklearn.linear_model import LogisticRegression
+
+sparse_blocks = [0, 1, 3]  # Blocks where admitted_enc == 0 rate > 3%
+mask_sparse = (df_train["site"] == "D") & (df_train["block"].isin(sparse_blocks))
+
+zero_target = (df_train.loc[mask_sparse, "admitted_enc"] == 0).astype(int)
+zero_features = df_train.loc[mask_sparse, ["block", "dow", "month", "te_site_block_mean_admitted"]]
+
+zero_clf = LogisticRegression(C=1.0, max_iter=500)
+zero_clf.fit(zero_features, zero_target)
+
+# 2. Apply correction to Site D admitted predictions
+ZERO_SHRINKAGE = 0.5  # Tune via CV in [0.3, 0.7]
+p_zero = zero_clf.predict_proba(X_pred_d_sparse[["block", "dow", "month", "te_site_block_mean_admitted"]])[:, 1]
+pred_admitted_d_corrected = pred_admitted_d * (1 - p_zero * ZERO_SHRINKAGE)
+
+# Ensure non-negative after correction
+pred_admitted_d_corrected = pred_admitted_d_corrected.clip(lower=0)
+```
+
+#### Eval Notes — Enhancement B
+- [ ] **Nested CV**: Residual model MUST use inner CV folds — never train and evaluate on the same OOF residuals
+- [ ] **Shrinkage tuning**: Log Site D WAPE for each `SHRINKAGE_WEIGHT` value; verify optimum is not at 0.0 (would mean residual model adds nothing) or 1.0 (would mean it's overfitting)
+- [ ] **Collateral damage check**: Sites A/B/C predictions are UNCHANGED — verify identical to pre-enhancement
+- [ ] **Feature importance**: Top features in residual model should be `block`, `global_pred`, `te_site_block_mean` — if it's dominated by lags, it may be overfitting to autocorrelation
+- [ ] **Residual distribution**: Plot residuals before and after correction — should see reduced bias for Block 0/1/3
+
+### Enhancement C: Admit-Rate Guardrails (add to `step_05_predict.py`)
+
+```python
+# After computing admitted = total × admit_rate for Site D:
+# Clamp admit_rate to historical [5th, 95th] percentile per (site, block)
+ADMIT_RATE_BOUNDS = {
+    ("D", 0): (0.08, 0.30),
+    ("D", 1): (0.10, 0.35),
+    ("D", 2): (0.10, 0.30),
+    ("D", 3): (0.08, 0.28),
+}
+for (site, block), (lo, hi) in ADMIT_RATE_BOUNDS.items():
+    mask = (df["site"] == site) & (df["block"] == block)
+    df.loc[mask, "admit_rate_pred"] = df.loc[mask, "admit_rate_pred"].clip(lo, hi)
+```
+
+---
+
 ## Dependencies
 
 ```
@@ -737,7 +909,7 @@ lightgbm>=4.0
 optuna>=3.0
 pandas>=2.0
 numpy>=1.24
-scikit-learn>=1.3   # Only for LabelEncoder, train_test_split utilities
+scikit-learn>=1.3   # LabelEncoder, train_test_split, LogisticRegression (zero-inflation)
 holidays>=0.40      # US holiday calendar
 pyarrow>=14.0       # Parquet I/O
 ```
