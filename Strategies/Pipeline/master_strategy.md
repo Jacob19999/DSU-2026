@@ -622,3 +622,238 @@ Dropping all 67 embedding features is the safest quick fix, but suboptimal:
    - **Static/deterministic** (calendar, weather forecast, events) — safe for any date
    - **Lagged/historical** (computed from past data only) — safe if shifted correctly
    - **Contemporaneous** (derived from same-date actuals) — **MUST be excluded or lagged**
+
+---
+
+## 11. Site D Isolation Strategy (2026-02-13)
+
+### 11.1 The Problem — Audit Summary
+
+Site D is the hardest site for **every** pipeline (admitted WAPE ~0.47–0.94 vs ~0.23–0.30 for A/B/C). A full data audit reveals this is **not** a data quality issue — there are no Site D-specific closures, missingness gaps, or structural breaks. The Sep-Oct 2025 zero region is identical across all 4 sites. The difficulty is intrinsic to Site D's volume profile:
+
+| Metric | Site A | Site B | Site C | **Site D** |
+|--------|--------|--------|--------|------------|
+| Daily total_enc | 121.3 | 165.7 | 95.7 | **72.3** |
+| Daily admitted_enc | 38.3 | 42.2 | 29.2 | **12.5** |
+| Overall admit rate | 31.6% | 25.5% | 30.6% | **17.4%** |
+| Block 0 admitted=0 rate | 1.3% | 0.6% | 6.6% | **28.9%** |
+| Block 0 admitted CV | 0.513 | 0.484 | 0.632 | **0.926** |
+| "Other" reason share | 43.8% | 50.6% | 46.2% | **52.5%** |
+
+**Root causes:**
+1. **Low volume** — 12.5 daily admissions means a 3-patient error costs 24% WAPE (vs 8% at Site A)
+2. **Extreme zero-inflation** — Block 0 admitted_enc is 0 on 28.9% of nights; the distribution is {0: 29%, 1: 36%, 2: 23%, 3+: 12%} — essentially a zero-inflated Poisson with mode at 0–1
+3. **Low acuity** — 17.4% admit rate is structurally different from A/C (~31%), suggesting Site D is a lower-acuity ED (more walk-in/urgent-care volume)
+4. **Noisier reason-mix** — 52.5% in the "other" catch-all means the top-20 reason features capture less signal for Site D
+
+### 11.2 Why Vanilla "Partial Pooling" Is Already Failing
+
+The textbook prescription for low-volume series is partial pooling — train a global model, let it borrow strength from higher-volume peers. **Pipelines A, B, and E already do this.** They train a single LightGBM across all 4 sites with `site` as a categorical feature. This IS partial pooling. And Site D still has a WAPE of ~0.47 while A/B/C sit at ~0.23–0.30. The strategy isn't wrong in principle — it's failing in execution due to three specific mechanisms.
+
+#### 11.2.1 The Volume-Bias Trap
+
+In a global GBDT, the loss function (here: MAE or WAPE-weighted MSE) minimizes **total error across the full dataset**. The gradient updates are dominated by whichever rows contribute the most loss:
+
+| Site | Share of Rows | Daily Volume | Loss Contribution (proportional) |
+|------|:------------:|:------------:|:-------------------------------:|
+| B | ~36% | 162 | **Highest** — high volume × many rows |
+| A | ~27% | 119 | High |
+| C | ~21% | 94 | Moderate |
+| **D** | **~16%** | **71** | **Lowest** — low volume × fewest rows |
+
+Result: The optimizer reduces global loss fastest by fitting Site B's patterns. Site D's gradient signal is drowned out. "Borrowing strength" effectively becomes **"overwriting Site D with Site B's patterns."** Even with `sample_weight = total_enc`, Site D's weights are the smallest, amplifying the imbalance.
+
+#### 11.2.2 GBDT Cannot Do True Partial Pooling
+
+A GLM with random effects achieves genuine partial pooling: shared slopes (β for weather, trend) with site-specific intercepts shrunk toward the population mean. GBDTs have no such mechanism. At each tree split, the algorithm faces a binary choice:
+
+- **Split on `site`** → The left/right child becomes a **local model** for that site (no pooling)
+- **Don't split on `site`** → All sites get the same prediction adjustment (**total pooling**)
+
+There is no tree operation that says "apply 70% of the global pattern and 30% of Site D's local deviation." The model either pools completely or isolates completely at each node. With Site D having 16% of the data and the lowest volume, the tree frequently chooses NOT to split on site (the split gain is small) — meaning Site D gets the same adjustment as Site B. When it does split, Site D's leaf has ~2,800 samples with high variance → noisy leaf value.
+
+#### 11.2.3 The Admit-Rate Structural Gap
+
+Site D's 17.4% admit rate is **14 percentage points** below A/C (~31%). This isn't noise — it's a fundamentally different patient population (lower-acuity ED). A global model that predicts `admitted_enc` directly must learn this 14pp gap entirely from the `site` feature. If the tree doesn't split on site early enough, predictions for Site D are biased toward the population mean (~27%), **systematically overpredicting** admissions.
+
+### 11.3 The Upgraded Strategy: Target Encoding + Hybrid-Residual
+
+The solution is not "more pooling" — it's giving the global model the right **numerical context** so it can apply shared patterns to the correct baseline, then cleaning up what the global model misses with a local specialist.
+
+#### 11.3.1 Component 1: Target Encoding (Fix the Baseline Problem)
+
+**Problem:** The categorical feature `site = D` tells the tree "this is site D" but nothing about what that *means* quantitatively. The tree must discover that Site D has ~71 daily visits and a 17.4% admit rate through splits — burning tree depth on something that should be a given.
+
+**Fix:** Replace (or augment) the raw `site` categorical with continuous **target-encoded** features that embed Site D's behavioral profile directly into the feature space:
+
+| Feature | Computation | Rationale |
+|---------|-------------|-----------|
+| `te_site_mean_total` | Trailing 90-day mean of `total_enc` for this site (lagged by `min_lag`) | Gives the tree the site's current volume level as a number, not a category. A holiday feature can now learn "+10% of baseline" and apply it correctly to Site D's 71 vs Site B's 162 |
+| `te_site_mean_admitted` | Trailing 90-day mean of `admitted_enc` for this site (lagged by `min_lag`) | Same for the prediction target — the tree knows Site D's baseline is ~3/block, not ~10/block |
+| `te_site_block_mean` | Trailing 90-day mean of target for this `(site, block)` combo (lagged) | Encodes that Site D Block 0 averages 1.24 admitted vs Site A Block 0 at 4.50 — critical for block-level granularity |
+| `te_site_dow_mean` | Trailing 90-day mean of target for this `(site, dow)` combo (lagged) | Encodes Site D's DOW pattern: almost flat (weekday/weekend gap = −0.1%) vs Site A's visible weekday drop |
+| `te_site_admit_rate` | Trailing 90-day `admitted_enc / total_enc` for this site (lagged) | Directly encodes the 17.4% vs 31.6% structural gap as a feature instead of forcing the tree to discover it |
+| `te_site_month_mean` | Trailing mean of target for this `(site, month)` combo across prior years (lagged) | Encodes Site D's seasonal shape (July peak = 80.8/day vs January = 67.8/day) |
+
+**Why this works where raw `site` fails:**
+- Trees can now split on `te_site_mean_total < 80` to isolate low-volume sites (D, and sometimes C) without burning a split on the categorical
+- Multiplicative effects (holiday = +10%, flu season = +15%) are applied to the *encoded baseline* rather than a global mean — so Site D gets +10% of 71, not +10% of 112
+- The features are **continuous and ordered** — the tree naturally handles the gradient from B (162) → A (119) → C (94) → D (71) without needing 3 binary splits
+
+**Leakage prevention:** All target-encoded features use a trailing window with the same `min_lag` shift as existing lag features. Never use current-period actuals. During CV, the trailing window is computed only on the training fold.
+
+**Implementation location:** Add to `build_features()` (Pipeline A), `build_bucket_data()` (Pipeline B), factor feature step (Pipeline E). These are standard lagged aggregation features — same pattern as existing `lag_total_{k}` and `roll_mean_{w}`.
+
+#### 11.3.2 Component 2: Hybrid-Residual Model (Fix the Tail Error)
+
+Target encoding fixes the baseline problem, but the global model will still make systematic errors on Site D because:
+- It optimizes for all 4 sites jointly — Site D's loss gradient is 16% of the total
+- Site D's unique variance patterns (zero-inflation, low-acuity mix) get averaged out in global tree splits
+
+The hybrid-residual approach decomposes the prediction into two stages:
+
+```
+Stage 1 (Global):   ŷ_global = GlobalGBDT(X_all_sites)     ← captures shared patterns
+Stage 2 (Local):    ŷ_residual = LocalGBDT_D(X_site_d)     ← captures Site D's deviations
+Final:              ŷ_D = ŷ_global_D + ŷ_residual
+```
+
+**Stage 1 — Global Model (unchanged):**
+The existing Pipelines A/B/E trained on all sites with the new target-encoded features from §11.3.1. This model captures:
+- Seasonal patterns (shared across sites)
+- Weather effects (shared, since D uses the same Fargo station as A/C)
+- DOW patterns (largely shared)
+- Holiday effects (shared)
+- Trend (shared)
+
+The global model will get Site D's *level* approximately right (thanks to target encoding) but will have systematic residual patterns — e.g., consistently overpredicting Block 0, missing the zero-inflation spikes, under-responding to Site D's weaker weekend effect.
+
+**Stage 2 — Local Residual Model (NEW):**
+
+| Aspect | Specification |
+|--------|--------------|
+| **Training target** | `residual_D = actual_D − ŷ_global_D` (out-of-fold predictions from Stage 1 CV) |
+| **Training data** | Site D rows only (~11,200 blocks, ~2,800 per block) |
+| **Features** | Subset of the global feature set + Site D-specific additions (see below) |
+| **Model** | LightGBM with **aggressive regularization**: `num_leaves=15`, `min_child_samples=50`, `lambda_l2=5.0`, `max_depth=4` |
+| **Why heavy regularization?** | Only ~11K training rows. Overfitting the residuals is worse than underfitting them — a bad residual model will *increase* error. The model should only correct strong, consistent biases, not chase noise |
+
+**Local model features (Site D only):**
+
+| Feature | Why |
+|---------|-----|
+| `block` | Block 0 has structurally different residuals (overprediction bias due to zero-inflation) |
+| `dow`, `month` | Site D's DOW/seasonal patterns may deviate from the global model's assumptions |
+| `te_site_block_mean` | The target-encoded baseline — residuals likely correlate with volume level |
+| `lag_admitted_{k}` (Site D) | Site D's own recent history — captures local autocorrelation the global model missed |
+| `lag_total_{k}` (Site D) | Total volume context |
+| `ŷ_global_D` | The global model's own prediction — residuals may be heteroscedastic (larger when prediction is high) |
+| `is_covid_era`, `is_holiday` | Regime indicators where the global model may systematically err for D |
+
+**What NOT to include:** Weather, reason-mix features, cross-site lags. These are already captured by the global model — re-including them gives the local model a path to overfit by re-learning the global signal instead of correcting residuals.
+
+**Stage 2 training procedure:**
+1. Run Stage 1 (global model) 4-fold CV → collect out-of-fold predictions for Site D
+2. Compute residuals: `r = actual_D − oof_pred_D`
+3. Train Stage 2 on `(X_D, r)` using nested 3-fold CV within the training portion to tune `shrinkage_weight`
+4. Final prediction: `ŷ_D = global_pred_D + shrinkage_weight × local_pred_residual_D`
+5. `shrinkage_weight ∈ [0.3, 0.8]`, tuned on the inner CV — this controls how much the local correction is trusted
+
+**Why shrinkage_weight < 1.0?** The local model is trained on ~2,800 rows per block. It WILL have estimation noise. A shrinkage weight of 0.5 means "trust the residual correction at 50%" — this is the bias-variance tradeoff. If the local model is well-calibrated, the weight will converge toward 0.7–0.8; if it's noisy, toward 0.3–0.4.
+
+#### 11.3.3 Component 3: Zero-Inflation Post-Hoc Correction (Block 0 Only)
+
+The hybrid-residual model corrects the *mean* prediction but still outputs continuous values. Site D Block 0 has 29% zero-nights for `admitted_enc` — the final ensemble will predict ~1.0–1.5 for every overnight block when the correct answer is often exactly 0.
+
+**After** the hybrid-residual produces its final prediction, apply a targeted zero-inflation adjustment:
+
+**Step 1 — Train a lightweight zero-classifier:**
+- Target: `admitted_enc == 0` (binary)
+- Features: `block`, `dow`, `month`, `total_enc_predicted` (from the ensemble's total prediction), `lag_admitted_{k}` from Site D
+- Model: Logistic regression or small LightGBM classifier (`max_depth=3`, few trees)
+- Training data: Site D blocks where `admitted_enc == 0` rate > 5% (Blocks 0, 1, 3)
+
+**Step 2 — Apply correction:**
+```python
+p_zero = zero_classifier.predict_proba(X_site_d)[:, 1]
+# Shrink prediction toward zero when classifier is confident
+corrected = hybrid_pred * (1 - p_zero * shrinkage_factor)
+# shrinkage_factor ∈ [0.3, 0.7], tuned on CV folds
+```
+
+This is conservative — it nudges predictions downward on nights the classifier thinks will be zero. The `shrinkage_factor` prevents overcorrection. It's easy to ablate (set `shrinkage_factor=0`) and runs after all other models.
+
+### 11.4 Pipeline D — Mixed-Effects GLM (Separate Track)
+
+Pipeline D (GLM/GAM) is architecturally different from the GBDT pipelines and can implement **true partial pooling** natively. The hybrid-residual approach above applies to Pipelines A/B/E; Pipeline D gets its own fix.
+
+**Change:** Replace the fixed `site` dummy with a **random intercept** per site using a mixed-effects formulation:
+
+```
+log(admitted_enc + 1) ~ Fourier(day_of_year) + DOW + is_holiday + trend
+                        + (1 | site)           ← random intercept
+                        + (1 | site:block)     ← random intercept per site×block
+```
+
+This shrinks Site D's intercept toward the population mean proportional to its variance — low-volume Site D Block 0 gets pulled toward the population pattern more than high-volume Site B Block 2. Unlike GBDT, this is genuine partial pooling with a principled shrinkage estimator (REML).
+
+**Implementation:** Use `statsmodels.formula.api.mixedlm()` or `pymer4`.
+
+### 11.5 Admit-Rate Isolation
+
+Site D's 17.4% admit rate is **14pp below** A/C (~31%). Pipelines that model `admit_rate` as a derived feature (total × rate = admitted) should:
+
+1. **Separate admit-rate models per site group:** {A, C} share similar rates (~30%), B is mid (25.5%), D is isolated (17.4%). A single admit-rate model across all sites forces the model to explain a 14pp structural gap via features — fitting separate models per group (or a global model with strong target encoding per §11.3.1) is more efficient.
+
+2. **Admit-rate guardrails for Site D Block 0:** Empirical admit rate at Site D Block 0 is 16.7% with high variance. Clamp predicted admit rates to the historical [5th, 95th] percentile range (~8%–30%) as a sanity floor/ceiling.
+
+### 11.6 Implementation Sequence & Ablation Protocol
+
+Each component is **independent and additive** — if any phase hurts, disable it without affecting the others.
+
+| Phase | Component | Pipelines | Depends On |
+|:-----:|-----------|-----------|:----------:|
+| 1 | Target-encoded features (§11.3.1) | A, B, E | — |
+| 2 | Mixed-effects GLM (§11.4) | D only | — |
+| 3 | Hybrid-residual model (§11.3.2) | A, B, E | Phase 1 (needs global model OOF preds) |
+| 4 | Zero-inflation correction (§11.3.3) | Ensemble | Phase 3 (runs on final preds) |
+| 5 | Admit-rate isolation (§11.5) | Any using rate decomposition | — |
+
+**Ablation at each phase:** Re-run 4-fold CV. Check:
+
+| Check | Pass Criterion |
+|-------|---------------|
+| Site D admitted WAPE improves | Δ ≤ −0.01 (any improvement counts) |
+| Sites A/B/C admitted WAPE not degraded | Δ ≤ +0.005 (tight — no collateral damage) |
+| Overall mean admitted WAPE improves | Net positive vs previous phase |
+
+**Critical:** Phase 3 (hybrid-residual) must be validated using **nested CV** — the residual model trains on inner folds only. Using the same OOF residuals for both training and evaluation would overestimate the residual model's contribution.
+
+### 11.7 Expected Impact
+
+| Component | Site D WAPE Impact (est.) | Confidence | Risk |
+|-----------|:------------------------:|:----------:|:----:|
+| Target encoding | −0.03 to −0.06 | High — fixes a known mechanism (baseline bias) | Low |
+| Hybrid-residual | −0.04 to −0.08 | Medium — depends on regularization tuning | Medium (overfit risk) |
+| Zero-inflation correction | −0.01 to −0.03 | Medium — narrow scope (Block 0 only) | Low |
+| Pipeline D mixed-effects | −0.02 to −0.04 | Medium — Pipeline D is weakest overall | Low |
+| **Combined (Pipelines A/B/E)** | **−0.07 to −0.14** | **Medium** | **Medium** |
+
+Reducing Site D admitted WAPE from ~0.47 to ~0.35 would bring the overall mean admitted WAPE from ~0.277 to ~0.255 — a ~2pp improvement from a single-site fix. If the residual model is well-calibrated, this could push Site D below 0.40, which would be competitive.
+
+### 11.8 What This Won't Fix
+
+- **Site D Block 0 admitted CV of 0.926** — near-irreducible noise. The residual model corrects *bias* (systematic over/under-prediction), not *variance* (per-night randomness). The best we can do is get the average right.
+- **The WAPE metric's penalty structure** — A 3-patient miss at Site D costs 24% WAPE vs 8% at Site A. This is a property of the metric, not the model. No modeling trick changes this arithmetic.
+- **Site D's reason-mix opacity** — 52.5% in "other" limits reason-based features. This is a data limitation, not addressable by the residual model.
+
+### 11.9 Why This Beats Vanilla Partial Pooling
+
+| Aspect | Vanilla (current) | Upgraded (§11.3) |
+|--------|-------------------|-------------------|
+| How Site D baseline is communicated | Categorical `site=D` → tree must discover volume level | Continuous `te_site_mean=71` → tree knows immediately |
+| Global model's loss allocation | Site D = 16% of gradient → drowned out | Same, but target encoding means the global model's errors on D are smaller → residual model cleans up the rest |
+| Local deviation handling | None — global model or nothing | Dedicated residual model with heavy regularization |
+| Zero-inflation | Ignored — continuous prediction for a zero-inflated target | Explicitly modeled post-hoc |
+| GBDT "partial pooling" | Binary: split on site (local) or don't (total) | Target encoding gives continuous interpolation; residual model adds local correction |
+| Failure mode | Silently overpredicts Site D by borrowing from B's patterns | Residual model has `shrinkage_weight` safety valve — worst case reverts to global-only |
