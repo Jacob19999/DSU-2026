@@ -85,6 +85,42 @@ LGBM_DEFAULT_A2 = {
     "verbosity": -1,
 }
 
+# ── Site D Student (Transfer Learning) ───────────────────────────────────────
+
+STUDENT_LGBM_PARAMS_S1 = {
+    "objective": "tweedie",
+    "tweedie_variance_power": 1.5,
+    "n_estimators": 800,
+    "num_leaves": 20,
+    "max_depth": 4,
+    "min_child_samples": 40,
+    "learning_rate": 0.02,
+    "subsample": 0.7,
+    "colsample_bytree": 0.6,
+    "reg_lambda": 10.0,
+    "reg_alpha": 1.0,
+    "min_split_gain": 0.1,
+    "verbosity": -1,
+}
+
+STUDENT_LGBM_PARAMS_S2 = {
+    "objective": "regression",
+    "n_estimators": 600,
+    "num_leaves": 15,
+    "max_depth": 4,
+    "min_child_samples": 40,
+    "learning_rate": 0.02,
+    "subsample": 0.7,
+    "colsample_bytree": 0.6,
+    "reg_lambda": 10.0,
+    "reg_alpha": 1.0,
+    "min_split_gain": 0.1,
+    "verbosity": -1,
+}
+
+# Blend weight α ∈ [0, 1]: α=1 fully student, α=0 fully teacher
+STUDENT_BLEND_ALPHA = 0.8
+
 # ── Optuna ───────────────────────────────────────────────────────────────────
 
 OPTUNA_N_TRIALS_A1 = 100

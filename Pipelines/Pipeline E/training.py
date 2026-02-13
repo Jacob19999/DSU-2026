@@ -32,6 +32,10 @@ from features import (
     apply_fold_encodings,
     get_feature_columns,
 )
+from transfer_learning import (
+    train_teacher_abc,
+    train_student_d,
+)
 
 CAT_FEATURES = ["site_enc", "block"]
 
@@ -156,48 +160,43 @@ def train_fold(
     train_all = fold_df[fold_df["date"] <= train_end].dropna(subset=[burn_in_col]).copy()
     val_df    = fold_df[(fold_df["date"] >= val_start) & (fold_df["date"] <= val_end)].copy()
 
-    # Early-stopping split
-    es_cutoff = train_end - pd.Timedelta(days=cfg.ES_HOLD_DAYS)
-    train_fit = train_all[train_all["date"] <= es_cutoff]
-    train_es  = train_all[train_all["date"] > es_cutoff]
-
-    if len(train_es) < 100:
-        n_es = max(int(len(train_all) * 0.1), 100)
-        train_fit = train_all.iloc[:-n_es]
-        train_es  = train_all.iloc[-n_es:]
-
-    print(f"    Train: {len(train_fit):,} fit + {len(train_es):,} ES  |  "
+    print(f"    Total train: {len(train_all):,}  |  "
           f"Val: {len(val_df):,} rows  |  Features: {len(feature_cols)}")
 
-    # ── Train Model E1: total_enc ────────────────────────────────────────
-    model_total = lgb.LGBMRegressor(**p_total)
-    model_total.fit(
-        train_fit[feature_cols], train_fit["total_enc"],
-        sample_weight=train_fit["sample_weight"].values,
-        eval_set=[(train_es[feature_cols], train_es["total_enc"])],
-        categorical_feature=CAT_FEATURES,
-        callbacks=[
-            lgb.early_stopping(cfg.ES_PATIENCE, verbose=False),
-            lgb.log_evaluation(0),
-        ],
+    # ── Stage 1: ABC Teacher ────────────────────────────────────────────
+    teacher_result = train_teacher_abc(
+        fold_df, train_end, val_start, val_end,
+        feature_cols=feature_cols,
+        params_total=p_total, params_rate=p_rate,
+    )
+    model_total = teacher_result["models"]["t1"]  # alias for compat
+    model_rate = teacher_result["models"]["t2"]
+
+    abc_val_idx = teacher_result["abc_val_idx"]
+    pred_total_abc = teacher_result["pred_total_abc"]
+    pred_rate_abc = teacher_result["pred_rate_abc"]
+
+    # ── Stage 2: Site D Student ──────────────────────────────────────────
+    student_result = train_student_d(
+        fold_df, train_end, val_start, val_end,
+        teacher_models=teacher_result["models"],
+        feature_cols_parent=feature_cols,
     )
 
-    # ── Train Model E2: admit_rate ───────────────────────────────────────
-    model_rate = lgb.LGBMRegressor(**p_rate)
-    model_rate.fit(
-        train_fit[feature_cols], train_fit["admit_rate"],
-        sample_weight=train_fit["sample_weight_rate"].values,
-        eval_set=[(train_es[feature_cols], train_es["admit_rate"])],
-        categorical_feature=CAT_FEATURES,
-        callbacks=[
-            lgb.early_stopping(cfg.ES_PATIENCE, verbose=False),
-            lgb.log_evaluation(0),
-        ],
-    )
+    # ── Merge: ABC (teacher) + D (student) ───────────────────────────────
+    pred_total    = np.empty(len(val_df), dtype=float)
+    pred_rate     = np.empty(len(val_df), dtype=float)
 
-    # ── Predict on validation ────────────────────────────────────────────
-    pred_total    = model_total.predict(val_df[feature_cols]).clip(0)
-    pred_rate     = model_rate.predict(val_df[feature_cols]).clip(0, 1)
+    abc_val_pos = val_df.index.get_indexer(abc_val_idx)
+    pred_total[abc_val_pos] = pred_total_abc
+    pred_rate[abc_val_pos] = pred_rate_abc
+
+    d_val_pos = val_df.index.get_indexer(student_result["d_val_idx"])
+    pred_total[d_val_pos] = student_result["pred_total"]
+    pred_rate[d_val_pos] = student_result["pred_rate"]
+
+    pred_total    = pred_total.clip(0)
+    pred_rate     = pred_rate.clip(0, 1)
     pred_admitted = pred_total * pred_rate
 
     # ── Post-process: largest-remainder rounding ─────────────────────────
@@ -239,10 +238,23 @@ def train_fold(
     total_wape_val    = wape(merged["total_enc"].values, merged["ED Enc"].values)
     admitted_wape_val = wape(merged["admitted_enc"].values, merged["ED Enc Admitted"].values)
 
+    # Per-site WAPE
+    site_wapes = {}
+    for site in cfg.SITES:
+        mask_s = merged["Site"] == site
+        if mask_s.sum() == 0:
+            continue
+        site_wapes[site] = {
+            "total": wape(merged.loc[mask_s, "total_enc"].values,
+                          merged.loc[mask_s, "ED Enc"].values),
+            "admitted": wape(merged.loc[mask_s, "admitted_enc"].values,
+                             merged.loc[mask_s, "ED Enc Admitted"].values),
+        }
+
     print(f"    Fold {fold_id}: total_wape={total_wape_val:.4f}  "
-          f"admitted_wape={admitted_wape_val:.4f}  "
-          f"(total iters={model_total.best_iteration_}, "
-          f"rate iters={model_rate.best_iteration_})")
+          f"admitted_wape={admitted_wape_val:.4f}")
+    for site, sw in site_wapes.items():
+        print(f"      Site {site}: total={sw['total']:.4f}  admitted={sw['admitted']:.4f}")
 
     # ── Save artifacts ───────────────────────────────────────────────────
     if save:
@@ -250,10 +262,14 @@ def train_fold(
         submission.to_csv(cfg.PRED_DIR / f"fold_{fold_id}_predictions.csv", index=False)
 
         fdir = cfg.fold_model_dir(fold_id)
-        model_total.booster_.save_model(str(fdir / "model_e1_total.txt"))
-        model_rate.booster_.save_model(str(fdir / "model_e2_rate.txt"))
+        # Teacher models (ABC)
+        model_total.booster_.save_model(str(fdir / "teacher_t1_total.txt"))
+        model_rate.booster_.save_model(str(fdir / "teacher_t2_rate.txt"))
+        # Student models (Site D)
+        student_result["model_s1"].booster_.save_model(str(fdir / "student_s1_total.txt"))
+        student_result["model_s2"].booster_.save_model(str(fdir / "student_s2_rate.txt"))
 
-        # Feature importance
+        # Feature importance (teacher)
         fi = pd.Series(model_total.feature_importances_, index=feature_cols)
         fi = fi.sort_values(ascending=False)
         fi.to_csv(cfg.FI_DIR / f"importance_fold{fold_id}_total.csv")
@@ -268,8 +284,10 @@ def train_fold(
         "fold_id": fold_id,
         "total_wape": total_wape_val,
         "admitted_wape": admitted_wape_val,
+        "site_wapes": site_wapes,
         "submission": submission,
         "models": (model_total, model_rate),
+        "student_result": student_result,
         "feature_cols": feature_cols,
     }
 

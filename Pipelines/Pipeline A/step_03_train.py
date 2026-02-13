@@ -21,6 +21,7 @@ from step_02_feature_eng import (
     compute_fold_target_encodings,
     get_feature_columns,
 )
+from transfer_learning import train_teacher_abc, train_student_d
 
 # ── Site D Isolation: Residual model feature list ─────────────────────────────
 # Excludes weather/reason-mix to prevent overfitting (Enhancement B, §11)
@@ -130,99 +131,64 @@ def train_fold(
     feature_cols = get_feature_columns(df_fold)
     cat_features = [c for c in ["site_enc", "block", "site_x_dow", "site_x_month"] if c in feature_cols]
 
-    train_data = df_fold.loc[train_mask].copy()
     val_data = df_fold.loc[val_mask].copy()
 
-    # COVID policy
+    # train_data needed for Enhancement C (zero-inflation) — Site D sparse blocks
+    train_data = df_fold.loc[train_mask].copy()
     if covid_policy == "exclude":
         if "is_covid_era" in train_data.columns:
             train_data = train_data[train_data["is_covid_era"] == 0].copy()
-        else:
-            print("  [WARN] covid_policy='exclude' but 'is_covid_era' not in columns; skipping exclusion.")
-
-    # Drop rows where longest lag is NaN (burn-in period)
     train_data = train_data.dropna(subset=[f"lag_{cfg.LAG_DAYS[-1]}"])
 
-    X_train = train_data[feature_cols]
-    X_val = val_data[feature_cols]
+    # ── Stage 1: ABC Teacher ────────────────────────────────────────────
+    teacher_result = train_teacher_abc(
+        df_fold, train_mask, val_mask,
+        feature_cols=feature_cols,
+        cat_features=cat_features,
+        params_a1=p_a1, params_a2=p_a2,
+        covid_policy=covid_policy,
+    )
+    model_t1 = teacher_result["models"]["t1"]
+    model_t2 = teacher_result["models"]["t2"]
 
-    # ── Weights ──────────────────────────────────────────────────────────
-    if covid_policy == "exclude":
-        w_a1 = train_data["volume_weight"].values
-        w_a2 = train_data["admitted_enc"].clip(lower=1).values.astype(float)
-    else:
-        w_a1 = train_data["sample_weight_a1"].values
-        w_a2 = train_data["sample_weight_a2"].values
+    # ABC val predictions
+    abc_val_idx = teacher_result["abc_val_idx"]
+    pred_total_abc = teacher_result["pred_total_abc"]
+    pred_rate_abc = teacher_result["pred_rate_abc"]
 
-    # ── Model A1: total_enc ──────────────────────────────────────────────
-    model_a1 = lgb.LGBMRegressor(**p_a1)
-    model_a1.fit(
-        X_train, train_data["total_enc"],
-        sample_weight=w_a1,
-        eval_set=[(X_val, val_data["total_enc"])],
-        categorical_feature=cat_features,
-        callbacks=[lgb.early_stopping(50, verbose=False), lgb.log_evaluation(0)],
+    # ── Stage 2: Site D Student ──────────────────────────────────────────
+    student_result = train_student_d(
+        df_fold, train_mask, val_mask,
+        teacher_models=teacher_result["models"],
+        feature_cols_parent=feature_cols,
     )
 
-    # ── Model A2: admit_rate ─────────────────────────────────────────────
-    model_a2 = lgb.LGBMRegressor(**p_a2)
-    model_a2.fit(
-        X_train, train_data["admit_rate"],
-        sample_weight=w_a2,
-        eval_set=[(X_val, val_data["admit_rate"])],
-        categorical_feature=cat_features,
-        callbacks=[lgb.early_stopping(50, verbose=False), lgb.log_evaluation(0)],
-    )
+    # ── Merge: ABC (teacher) + D (student) ───────────────────────────────
+    mask_d_val = val_mask & (df_fold["site"] == "D")
+    mask_abc_val = val_mask & df_fold["site"].isin(["A", "B", "C"])
 
-    # ── Predict (global model) ────────────────────────────────────────────
-    pred_total = model_a1.predict(X_val).clip(0)
-    pred_rate = model_a2.predict(X_val).clip(0, 1)
+    # Allocate full-length prediction arrays aligned to val_data index
+    pred_total = np.empty(len(val_data), dtype=float)
+    pred_rate = np.empty(len(val_data), dtype=float)
 
-    # ── Enhancement B: Hybrid-residual for Site D ────────────────────────
-    residual_feats = [f for f in RESIDUAL_FEATURES if f in feature_cols or f == "global_pred"]
+    # Map ABC predictions
+    abc_val_pos = val_data.index.get_indexer(abc_val_idx)
+    pred_total[abc_val_pos] = pred_total_abc
+    pred_rate[abc_val_pos] = pred_rate_abc
 
-    # Add global_pred as feature for residual model
-    train_data_res = train_data.copy()
-    train_data_res["global_pred"] = model_a1.predict(X_train).clip(0)
-    val_data_res = val_data.copy()
-    val_data_res["global_pred"] = pred_total
-
-    # Determine which residual features exist
-    res_feats_available = [f for f in residual_feats if f in train_data_res.columns]
-
-    mask_d_train = train_data_res["site"] == "D"
-    mask_d_val = val_data_res["site"] == "D"
-    residual_model = None
-
-    if mask_d_train.sum() > 100 and len(res_feats_available) >= 5:
-        # Compute training residuals for Site D
-        y_train_d = train_data_res.loc[mask_d_train, "total_enc"].values
-        pred_train_d = train_data_res.loc[mask_d_train, "global_pred"].values
-        residuals_d = y_train_d - pred_train_d
-
-        X_res_train = train_data_res.loc[mask_d_train, res_feats_available]
-        X_res_val_d = val_data_res.loc[mask_d_val, res_feats_available]
-
-        # Inner validation: last 20% of Site D training data
-        n_inner = max(int(len(X_res_train) * 0.2), 30)
-        X_res_tr = X_res_train.iloc[:-n_inner]
-        X_res_iv = X_res_train.iloc[-n_inner:]
-        y_res_tr = residuals_d[:-n_inner]
-        y_res_iv = residuals_d[-n_inner:]
-
-        residual_model = lgb.LGBMRegressor(**RESIDUAL_LGBM_PARAMS)
-        residual_model.fit(
-            X_res_tr, y_res_tr,
-            eval_set=[(X_res_iv, y_res_iv)],
-            callbacks=[lgb.early_stopping(30, verbose=False), lgb.log_evaluation(0)],
-        )
-
-        # Correct Site D total predictions
-        correction = SHRINKAGE_WEIGHT * residual_model.predict(X_res_val_d)
-        pred_total[mask_d_val.values] += correction
+    # Map D predictions
+    d_val_pos = val_data.index.get_indexer(student_result["d_val_idx"])
+    pred_total[d_val_pos] = student_result["pred_total"]
+    pred_rate[d_val_pos] = student_result["pred_rate"]
 
     pred_total = pred_total.clip(0)
+    pred_rate = pred_rate.clip(0, 1)
     pred_admitted = pred_total * pred_rate
+
+    # Aliases for backward compat (model saving, return dict)
+    model_a1 = model_t1
+    model_a2 = model_t2
+    residual_model = None  # No longer used
 
     # ── Enhancement C: Zero-inflation classifier for Site D sparse blocks ─
     sparse_blocks = [0, 1, 3]
@@ -295,29 +261,51 @@ def train_fold(
     if save:
         cfg.ensure_dirs()
         submission.to_csv(cfg.OUTPUT_DIR / f"fold_{fold_id}_predictions.csv", index=False)
-        model_a1.booster_.save_model(str(cfg.MODEL_DIR / f"fold_{fold_id}_model_a1.txt"))
-        model_a2.booster_.save_model(str(cfg.MODEL_DIR / f"fold_{fold_id}_model_a2.txt"))
-        if residual_model is not None:
-            residual_model.booster_.save_model(
-                str(cfg.MODEL_DIR / f"fold_{fold_id}_residual_d.txt")
-            )
+        # Teacher models (ABC)
+        model_t1.booster_.save_model(str(cfg.MODEL_DIR / f"fold_{fold_id}_teacher_t1.txt"))
+        model_t2.booster_.save_model(str(cfg.MODEL_DIR / f"fold_{fold_id}_teacher_t2.txt"))
+        # Student models (Site D)
+        student_result["model_s1"].booster_.save_model(
+            str(cfg.MODEL_DIR / f"fold_{fold_id}_student_s1.txt")
+        )
+        student_result["model_s2"].booster_.save_model(
+            str(cfg.MODEL_DIR / f"fold_{fold_id}_student_s2.txt")
+        )
 
     # ── Quick metrics ────────────────────────────────────────────────────
-    total_wape = wape(val_data["total_enc"].values, val_out["pred_total"].values)
-    admitted_wape = wape(val_data["admitted_enc"].values, val_out["pred_admitted"].values)
+    total_wape_all = wape(val_data["total_enc"].values, val_out["pred_total"].values)
+    admitted_wape_all = wape(val_data["admitted_enc"].values, val_out["pred_admitted"].values)
+
+    # Per-site WAPE (diagnostic)
+    site_wapes = {}
+    for site in cfg.SITES:
+        mask_s = val_out["site"] == site
+        if mask_s.sum() == 0:
+            continue
+        s_actual_t = val_data.loc[val_out.index[mask_s], "total_enc"].values
+        s_pred_t = val_out.loc[mask_s, "pred_total"].values
+        s_actual_a = val_data.loc[val_out.index[mask_s], "admitted_enc"].values
+        s_pred_a = val_out.loc[mask_s, "pred_admitted"].values
+        site_wapes[site] = {
+            "total": wape(s_actual_t, s_pred_t),
+            "admitted": wape(s_actual_a, s_pred_a),
+        }
 
     print(
-        f"    Fold {fold_id}: total_wape={total_wape:.4f}  admitted_wape={admitted_wape:.4f}"
-        f"  (A1 iters={model_a1.best_iteration_}, A2 iters={model_a2.best_iteration_})"
+        f"    Fold {fold_id}: total_wape={total_wape_all:.4f}  "
+        f"admitted_wape={admitted_wape_all:.4f}"
     )
+    for site, sw in site_wapes.items():
+        print(f"      Site {site}: total={sw['total']:.4f}  admitted={sw['admitted']:.4f}")
 
     return {
         "fold_id": fold_id,
-        "total_wape": total_wape,
-        "admitted_wape": admitted_wape,
+        "total_wape": total_wape_all,
+        "admitted_wape": admitted_wape_all,
+        "site_wapes": site_wapes,
         "model_a1": model_a1,
         "model_a2": model_a2,
-        "residual_model": residual_model,
+        "student_result": student_result,
         "zero_clf": zero_clf,
         "submission": submission,
         "feature_cols": feature_cols,
