@@ -344,11 +344,10 @@ def get_feature_columns(df: pd.DataFrame) -> list[str]:
 # ══════════════════════════════════════════════════════════════════════════════
 
 def add_all_base_features(df: pd.DataFrame) -> pd.DataFrame:
-    """Add static features + target lag features + cross-block lags + target encodings."""
+    """Add static features + target lag features + cross-block lags."""
     df = add_static_features(df)
     df = add_target_lag_features(df)
     df = add_cross_block_lag_features(df)
-    df = add_target_encodings(df)
     return df
 
 

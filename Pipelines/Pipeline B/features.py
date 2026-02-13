@@ -169,12 +169,6 @@ def build_bucket_data(
     lags    = cfg.BUCKET_LAGS[bucket_id]
     min_lag = bucket["min_lag"]
 
-    # Pre-extract Block 3 series per site for cross-block features
-    _b3_total_by_site: dict[str, pd.Series] = {}
-    for _s in df["site"].unique():
-        b3 = df.loc[(df["site"] == _s) & (df["block"] == 3)].sort_values("date")
-        _b3_total_by_site[_s] = b3["total_enc"]
-
     frames: list[pd.DataFrame] = []
 
     for h in h_list:
@@ -219,19 +213,6 @@ def build_bucket_data(
                         expanded.loc[idx, f"roll_{short}_{w}"] = (
                             shifted_emb.rolling(w, min_periods=1).mean().values
                         )
-
-            # ── Cross-block lags: Block 0 ← lagged Block 3 (evening decay) ──
-            if _blk == 0 and _site in _b3_total_by_site:
-                b3_t = _b3_total_by_site[_site]
-                for k in lags:
-                    expanded.loc[idx, f"xblock_b3_total_{k}"] = (
-                        b3_t.shift(h + k).values
-                    )
-                b3_shifted = b3_t.shift(h + min_lag)
-                for w in [7, 14, 28]:
-                    expanded.loc[idx, f"xblock_b3_roll_mean_{w}"] = (
-                        b3_shifted.rolling(w, min_periods=1).mean().values
-                    )
 
         # Optionally filter to target dates (prediction efficiency)
         if target_dates is not None:

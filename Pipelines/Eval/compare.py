@@ -317,3 +317,163 @@ def save_reports(results: Dict[str, Dict]) -> None:
             json.dump(summary, f, indent=2)
 
         print(f"  Saved: {pipe_dir}/")
+
+    # Markdown report
+    md_report = generate_markdown_report(results)
+    md_path = out / "evaluation_report.md"
+    md_path.write_text(md_report, encoding="utf-8")
+    print(f"  Saved: {md_path}")
+
+
+def generate_markdown_report(results: Dict[str, Dict]) -> str:
+    """Generate evaluation_report.md from current results."""
+    from datetime import date
+
+    lb = build_leaderboard(results)
+    pf = per_fold_comparison(results)
+    conv = convergence_analysis(results)
+    corr = pairwise_correlation(results)
+
+    lines = []
+    lines.append("# DSU-2026 Pipeline Evaluation Report\n")
+    lines.append(f"**Generated:** {date.today().isoformat()}")
+    lines.append("**Evaluation protocol:** 4\u00d7 2-month forward validation windows (per `Strategies/eval.md`)")
+    lines.append("**Primary metric:** Mean Admitted WAPE (lower is better)")
+    lines.append(f"**Pipelines evaluated:** {', '.join(sorted(results.keys()))}\n")
+    lines.append("---\n")
+
+    # ── Leaderboard ──
+    lines.append("## Leaderboard (ranked by Mean Admitted WAPE)\n")
+    lines.append("| Rank | Pipeline | Admitted WAPE | Total WAPE | Admitted RMSE | Total RMSE | Admitted R\u00b2 | Total R\u00b2 |")
+    lines.append("|------|----------|:------------:|:----------:|:-------------:|:----------:|:-----------:|:--------:|")
+    for rank, row in lb.iterrows():
+        name = row["pipeline"]
+        bold = "**" if rank == 1 else ""
+        lines.append(
+            f"| {rank} | {bold}{name}{bold} | {bold}{row['admitted_wape']:.4f}{bold} | "
+            f"{row['total_wape']:.4f} | {row['admitted_rmse']:.3f} | {row['total_rmse']:.3f} | "
+            f"{row['admitted_r2']:.3f} | {row['total_r2']:.3f} |"
+        )
+    winner = lb.iloc[0]["pipeline"]
+    w_wape = lb.iloc[0]["admitted_wape"]
+    lines.append(f"\n**Pipeline {winner} wins** with a mean admitted WAPE of {w_wape:.4f}.\n")
+    lines.append("---\n")
+
+    # ── Per-Fold ──
+    if len(pf) > 0:
+        lines.append("## Per-Fold Breakdown (Admitted WAPE)\n")
+        fold_windows = {
+            1: "Jan\u2013Feb 2025", 2: "Mar\u2013Apr 2025",
+            3: "May\u2013Jun 2025", 4: "Jul\u2013Aug 2025",
+        }
+        pipe_names = sorted([c for c in pf.columns if c != "best"])
+        header = "| Fold | Window | " + " | ".join(pipe_names) + " | Best |"
+        sep_row = "|------|--------|" + "|".join([":-----:" for _ in pipe_names]) + "|:----:|"
+        lines.append(header)
+        lines.append(sep_row)
+        for fold_id, row in pf.iterrows():
+            best = row["best"]
+            cells = []
+            for p in pipe_names:
+                val = row[p]
+                if p == best:
+                    cells.append(f"**{val:.4f}**")
+                else:
+                    cells.append(f"{val:.4f}")
+            window = fold_windows.get(fold_id, "")
+            lines.append(f"| {fold_id} | {window} | " + " | ".join(cells) + f" | **{best}** |")
+        lines.append("")
+        lines.append("---\n")
+
+    # ── By-Site ──
+    lines.append("## By-Site Analysis (Admitted WAPE, averaged across folds)\n")
+    pipe_names_sorted = sorted(results.keys())
+    header = "| Site | " + " | ".join(pipe_names_sorted) + " |"
+    sep_row = "|------|" + "|".join([":-----:" for _ in pipe_names_sorted]) + "|"
+    lines.append(header)
+    lines.append(sep_row)
+    site_data = {}
+    for name, res in results.items():
+        if not res["by_site"].empty:
+            for _, row in res["by_site"].iterrows():
+                site = row["Site"]
+                if site not in site_data:
+                    site_data[site] = {}
+                site_data[site][name] = row["admitted_wape"]
+    for site in sorted(site_data.keys()):
+        vals = site_data[site]
+        best_p = min(vals, key=vals.get)
+        cells = []
+        for p in pipe_names_sorted:
+            v = vals.get(p, float("nan"))
+            if p == best_p:
+                cells.append(f"**{v:.4f}**")
+            else:
+                cells.append(f"{v:.4f}")
+        lines.append(f"| {site} | " + " | ".join(cells) + " |")
+    lines.append("")
+    lines.append("---\n")
+
+    # ── By-Block ──
+    lines.append("## By-Block Analysis (Admitted WAPE, averaged across folds)\n")
+    block_labels = {0: "0 (00:00\u201305:59)", 1: "1 (06:00\u201311:59)", 2: "2 (12:00\u201317:59)", 3: "3 (18:00\u201323:59)"}
+    header = "| Block (6h window) | " + " | ".join(pipe_names_sorted) + " |"
+    sep_row = "|-------------------|" + "|".join([":-----:" for _ in pipe_names_sorted]) + "|"
+    lines.append(header)
+    lines.append(sep_row)
+    block_data = {}
+    for name, res in results.items():
+        if not res["by_block"].empty:
+            for _, row in res["by_block"].iterrows():
+                blk = row["Block"]
+                if blk not in block_data:
+                    block_data[blk] = {}
+                block_data[blk][name] = row["admitted_wape"]
+    for blk in sorted(block_data.keys()):
+        vals = block_data[blk]
+        best_p = min(vals, key=vals.get)
+        cells = []
+        for p in pipe_names_sorted:
+            v = vals.get(p, float("nan"))
+            if p == best_p:
+                cells.append(f"**{v:.4f}**")
+            else:
+                cells.append(f"{v:.4f}")
+        label = block_labels.get(blk, str(blk))
+        lines.append(f"| {label} | " + " | ".join(cells) + " |")
+    lines.append("")
+    lines.append("---\n")
+
+    # ── Convergence ──
+    lines.append("## Convergence Analysis\n")
+    lines.append("| Metric | Value |")
+    lines.append("|--------|-------|")
+    lines.append(f"| Number of pipelines | {conv['n_pipelines']} |")
+    if not np.isnan(conv.get("cv", float("nan"))):
+        lines.append(f"| Mean WAPE (across pipelines) | {conv['mean_wape']:.4f} |")
+        lines.append(f"| Std WAPE | {conv['std_wape']:.4f} |")
+        lines.append(f"| **Coefficient of Variation (CV)** | **{conv['cv']:.4f}** |")
+        if conv["cv"] < 0.05:
+            interp_label = "Converged"
+        elif conv["cv"] < 0.15:
+            interp_label = "Partial Convergence"
+        else:
+            interp_label = "Divergent"
+        lines.append(f"| Interpretation | **{interp_label}** |")
+    lines.append("")
+    lines.append("---\n")
+
+    # ── Pairwise Correlation ──
+    if corr is not None:
+        lines.append("## Pairwise Prediction Correlation\n")
+        names = list(corr.columns)
+        header = "|   | " + " | ".join(names) + " |"
+        sep_row = "|---|" + "|".join([":-----:" for _ in names]) + "|"
+        lines.append(header)
+        lines.append(sep_row)
+        for name in names:
+            cells = [f"{corr.loc[name, n]:.3f}" for n in names]
+            lines.append(f"| **{name}** | " + " | ".join(cells) + " |")
+        lines.append("")
+
+    return "\n".join(lines) + "\n"

@@ -1,14 +1,14 @@
 {
   "n_pipelines": 5,
   "wapes": {
-    "A": 0.2793721977001039,
+    "A": 0.27936556027240445,
     "B": 0.2828893155168087,
     "C": 0.2909645137909024,
     "D": 0.38882794071214055,
-    "E": 0.27787622748894003
+    "E": 0.29277127378140777
   },
-  "mean_wape": 0.3039860390417791,
-  "std_wape": 0.04266226338887675,
-  "cv": 0.14034283785977864,
+  "mean_wape": 0.3069637208147328,
+  "std_wape": 0.041231992756511536,
+  "cv": 0.13432203860141834,
   "interpretation": "PARTIAL CONVERGENCE -- some diversity remains. Ensemble will help; investigate outlier pipelines."
 }

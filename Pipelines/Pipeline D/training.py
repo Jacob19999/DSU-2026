@@ -191,8 +191,10 @@ def train_mixed_effects_total(
         return result
 
     except Exception as e:
+        import traceback
         if verbose:
             print(f"  [Mixed-effects total_enc] FAILED: {e}")
+            traceback.print_exc()
             print("  Falling back to per-series GLMs...")
         return None
 
@@ -249,8 +251,10 @@ def train_mixed_effects_rate(
         return result
 
     except Exception as e:
+        import traceback
         if verbose:
             print(f"  [Mixed-effects admit_rate] FAILED: {e}")
+            traceback.print_exc()
             print("  Falling back to per-series GLMs...")
         return None
 

@@ -15,7 +15,9 @@ import config as cfg
 from data_loader import get_site_block_subset, get_fold_data
 from features import build_design_matrix
 from training import (
+    train_models,
     train_all_models,
+    predict_mixed_effects,
     save_models,
     largest_remainder_round,
     wape,
@@ -33,10 +35,57 @@ def predict_window(
     forecast_end: str,
     fourier_config: list[dict] | None = None,
 ) -> pd.DataFrame:
-    """Generate raw predictions for all (site, block) on a date window.
+    """Generate raw predictions for all (site, block) on a date window."""
+    model_type = models.get("model_type", "per_series")
 
-    Uses the deterministic design matrix — no lagged targets needed.
-    """
+    if model_type == "mixed_effects":
+        return _predict_window_mixed(master_df, models, forecast_start, forecast_end, fourier_config)
+    return _predict_window_per_series(master_df, models, forecast_start, forecast_end, fourier_config)
+
+
+def _predict_window_mixed(
+    master_df: pd.DataFrame,
+    models: dict,
+    forecast_start: str,
+    forecast_end: str,
+    fourier_config: list[dict] | None = None,
+) -> pd.DataFrame:
+    """Predict using unified mixed-effects models."""
+    start = pd.Timestamp(forecast_start)
+    end = pd.Timestamp(forecast_end)
+
+    forecast_df = master_df[
+        (master_df["date"] >= start) & (master_df["date"] <= end)
+    ].copy()
+
+    if forecast_df.empty:
+        return pd.DataFrame()
+
+    pred_total = predict_mixed_effects(models["total_model"], forecast_df, target="total")
+    pred_rate = predict_mixed_effects(models["rate_model"], forecast_df, target="rate")
+    pred_admitted = pred_total * pred_rate
+
+    rows = []
+    for i in range(len(forecast_df)):
+        rows.append({
+            "site": forecast_df.iloc[i]["site"],
+            "date": forecast_df.iloc[i]["date"],
+            "block": forecast_df.iloc[i]["block"],
+            "pred_total": pred_total[i],
+            "pred_rate": pred_rate[i],
+            "pred_admitted": pred_admitted[i],
+        })
+    return pd.DataFrame(rows)
+
+
+def _predict_window_per_series(
+    master_df: pd.DataFrame,
+    models: dict,
+    forecast_start: str,
+    forecast_end: str,
+    fourier_config: list[dict] | None = None,
+) -> pd.DataFrame:
+    """Predict using per-series GLMs (original logic)."""
     fc = fourier_config or cfg.FOURIER_TERMS
     start = pd.Timestamp(forecast_start)
     end   = pd.Timestamp(forecast_end)
@@ -167,10 +216,8 @@ def train_and_predict_fold(
     fold_id = fold["id"]
     train_df, val_df = get_fold_data(master_df, fold)
 
-    # ── Train 32 models ──────────────────────────────────────────────────
-    print(f"    Training {len(cfg.SITES)}x{len(cfg.BLOCKS)} = "
-          f"{len(cfg.SITES) * len(cfg.BLOCKS)} model pairs ...")
-    models = train_all_models(train_df, fourier_config, alpha, verbose=False)
+    # ── Train models (mixed-effects attempt → per-series fallback) ─────
+    models = train_models(train_df, fourier_config, alpha, verbose=True)
 
     # ── Predict on validation window ─────────────────────────────────────
     raw_pred = predict_window(
@@ -229,7 +276,7 @@ def generate_final_forecast(
     train_df = master_df[master_df["date"] <= pd.Timestamp(train_end)].copy()
 
     print(f"  Training on {len(train_df):,} rows (through {train_end}) ...")
-    models = train_all_models(train_df, fourier_config, alpha, verbose=True)
+    models = train_models(train_df, fourier_config, alpha, verbose=True)
 
     raw_pred = predict_window(master_df, models, pred_start, pred_end, fourier_config)
     submission = post_process(raw_pred)
